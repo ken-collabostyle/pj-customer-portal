@@ -1,0 +1,480 @@
+{
+    "total_count": 32,
+    "parts": {
+        "fidCollaboformSubdomain": {
+            "order": 9,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 40,
+            "default": "",
+            "name": "コラボフォームサブドメイン"
+        },
+        "fidCollaboformCurrentSubdomain": {
+            "order": 12,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 40,
+            "default": "",
+            "name": "コラボフォーム現在サブドメイン"
+        },
+        "fidOrderTax": {
+            "order": 17,
+            "calc_type": "number",
+            "decimal_place": 0,
+            "hint": "",
+            "required": false,
+            "formula": "DecrementValue(fidOrderSubtotal*1.1)",
+            "type": "calculate",
+            "comment": "",
+            "add_comma": false,
+            "name": "ご注文消費税"
+        },
+        "fidCurrentContractUserCount": {
+            "order": 8,
+            "display": true,
+            "decimal_place": 0,
+            "hint": "",
+            "required": false,
+            "input_regulation": {},
+            "type": "number_v2",
+            "comment": "",
+            "default": "",
+            "add_comma": false,
+            "name": "現在契約ユーザー数"
+        },
+        "fidCollaboformTermsOnCancel": {
+            "checked_comment": "yes",
+            "order": 11,
+            "unchecked_comment": "",
+            "hint": "",
+            "required": false,
+            "type": "checkbox",
+            "comment": "",
+            "default": false,
+            "name": "コラボフォーム規約への同意解約時"
+        },
+        "fidCorporateName": {
+            "order": 5,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": true,
+            "type": "text",
+            "comment": "",
+            "max_length": 50,
+            "default": "",
+            "name": "法人／団体名"
+        },
+        "fidTestEnvUrlThirdChoice": {
+            "order": 15,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 20,
+            "default": "",
+            "name": "テスト環境のURL希望③"
+        },
+        "fidTrialEnvUrl": {
+            "order": 19,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 20,
+            "default": "",
+            "name": "お試し環境のURL"
+        },
+        "fidCollaboformTermsOnContract": {
+            "checked_comment": "yes",
+            "order": 10,
+            "unchecked_comment": "",
+            "hint": "",
+            "required": false,
+            "type": "checkbox",
+            "comment": "",
+            "default": false,
+            "name": "コラボフォーム規約への同意契約時"
+        },
+        "tables": [
+            {
+                "table_index": 1,
+                "max_row": 10,
+                "order": 1,
+                "parts": {
+                    "fidChangedProductCode": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 50,
+                        "default": "",
+                        "name": "変更後商品コード"
+                    },
+                    "fidAddedProductCode": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 20,
+                        "default": "",
+                        "name": "追加商品コード"
+                    },
+                    "fidAddedProductQuantity": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": false,
+                        "name": "追加商品契約数"
+                    },
+                    "fidProductCancel": {
+                        "checked_comment": "解約",
+                        "unchecked_comment": "継続",
+                        "hint": "",
+                        "required": false,
+                        "type": "checkbox",
+                        "comment": "",
+                        "default": false,
+                        "name": "商品解約"
+                    },
+                    "fidAddedProductPrice": {
+                        "calc_type": "number",
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "formula": "fidAddedProductUnitPrice*fidAddedProductQuantity",
+                        "type": "calculate",
+                        "comment": "",
+                        "add_comma": false,
+                        "name": "追加商品価格"
+                    },
+                    "fidChangedProductName": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 50,
+                        "default": "",
+                        "name": "変更後商品名"
+                    },
+                    "fidChangedProductUnit": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 20,
+                        "default": "",
+                        "name": "変更後商品単位"
+                    },
+                    "fidChangedProductUnitPrice": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": true,
+                        "name": "変更後商品単価"
+                    },
+                    "fidAddedProductUnit": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 20,
+                        "default": "",
+                        "name": "追加商品単位"
+                    },
+                    "fidChangedProductPrice": {
+                        "calc_type": "number",
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "formula": "fidChangedProductQuantity*fidChangedProductUnitPrice",
+                        "type": "calculate",
+                        "comment": "",
+                        "add_comma": false,
+                        "name": "変更後商品価格"
+                    },
+                    "fidAddedProductName": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 50,
+                        "default": "",
+                        "name": "追加商品名"
+                    },
+                    "fidChangedProductQuantity": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": false,
+                        "name": "変更後商品契約数"
+                    },
+                    "fidAddedProductUnitPrice": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": false,
+                        "name": "追加商品単価"
+                    },
+                    "fidCurrentProductQuantity": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": false,
+                        "name": "現商品契約数"
+                    }
+                },
+                "default_row": 10,
+                "columns": [
+                    "fidProductCancel",
+                    "fidChangedProductName",
+                    "fidChangedProductCode",
+                    "fidChangedProductUnitPrice",
+                    "fidCurrentProductQuantity",
+                    "fidChangedProductQuantity",
+                    "fidChangedProductUnit",
+                    "fidAddedProductName",
+                    "fidAddedProductCode",
+                    "fidAddedProductUnitPrice",
+                    "fidAddedProductQuantity",
+                    "fidAddedProductUnit",
+                    "fidAddedProductPrice",
+                    "fidChangedProductPrice"
+                ],
+                "display_row_number": false,
+                "name": "table"
+            }
+        ],
+        "fidOrderSubtotal": {
+            "order": 16,
+            "calc_type": "number",
+            "decimal_place": 0,
+            "hint": "",
+            "required": false,
+            "formula": "SUM(fidAddedProductPrice)+SUM(fidChangedProductPrice)",
+            "type": "calculate",
+            "comment": "",
+            "add_comma": false,
+            "name": "ご注文小計"
+        },
+        "fidTestEnvUrlFirstChoice": {
+            "order": 13,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 20,
+            "default": "",
+            "name": "テスト環境のURL希望①"
+        },
+        "fidCurrentContractPlan": {
+            "order": 7,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 50,
+            "default": "",
+            "name": "現在契約プラン"
+        },
+        "fidChangeApplyYear": {
+            "order": 2,
+            "display": true,
+            "decimal_place": 0,
+            "hint": "",
+            "required": true,
+            "input_regulation": {
+                "range": {
+                    "lower_limit": 2025,
+                    "upper_limit": 2099
+                }
+            },
+            "type": "number_v2",
+            "comment": "",
+            "default": "",
+            "add_comma": false,
+            "name": "変更適用希望年"
+        },
+        "fidOrderTotalAmount": {
+            "order": 18,
+            "calc_type": "number",
+            "decimal_place": 0,
+            "hint": "",
+            "required": false,
+            "formula": "fidOrderSubtotal+fidOrderTax",
+            "type": "calculate",
+            "comment": "",
+            "add_comma": false,
+            "name": "ご注文合計金額"
+        },
+        "fidChangeApplyMonth": {
+            "order": 3,
+            "default_index": 1,
+            "hint": "",
+            "required": true,
+            "options": [
+                {
+                    "label": "--- 未選択 ---",
+                    "value": ""
+                },
+                {
+                    "label": "1",
+                    "value": "1"
+                },
+                {
+                    "label": "2",
+                    "value": "2"
+                },
+                {
+                    "label": "3",
+                    "value": "3"
+                },
+                {
+                    "label": "4",
+                    "value": "4"
+                },
+                {
+                    "label": "5",
+                    "value": "5"
+                },
+                {
+                    "label": "6",
+                    "value": "6"
+                },
+                {
+                    "label": "7",
+                    "value": "7"
+                },
+                {
+                    "label": "8",
+                    "value": "8"
+                },
+                {
+                    "label": "9",
+                    "value": "9"
+                },
+                {
+                    "label": "10",
+                    "value": "10"
+                },
+                {
+                    "label": "11",
+                    "value": "11"
+                },
+                {
+                    "label": "12",
+                    "value": "12"
+                }
+            ],
+            "type": "list",
+            "comment": "",
+            "name": "変更適用希望月"
+        },
+        "fidCollaboflowTermsAgreement": {
+            "checked_comment": "Yes",
+            "order": 4,
+            "unchecked_comment": "",
+            "hint": "",
+            "required": true,
+            "type": "checkbox",
+            "comment": "",
+            "default": false,
+            "name": "コラボフロー規約への同意"
+        },
+        "fidTestEnvUrlSecondChoice": {
+            "order": 14,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": false,
+            "type": "text",
+            "comment": "",
+            "max_length": 20,
+            "default": "",
+            "name": "テスト環境のURL希望②"
+        },
+        "fidContractedInstanceName": {
+            "order": 6,
+            "display": true,
+            "input_format": "",
+            "display_format": "",
+            "hint": "",
+            "required": true,
+            "type": "text",
+            "comment": "",
+            "max_length": 20,
+            "default": "",
+            "name": "ご契約中のインスタンス名"
+        }
+    },
+    "app_cd": 1,
+    "version": 1,
+    "error": false
+}
