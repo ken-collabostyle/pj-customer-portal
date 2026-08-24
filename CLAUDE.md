@@ -19,6 +19,8 @@
 
 ## 4. 記録 (Recording)
 * タスク完了時、docs/agent-records/ に実施記録を残す（テンプレートは docs/agent-records/TEMPLATE.md を参照）
+* 記録のフロントマター（type, date, status, tags, related, resolves）を埋め、docs/agent-records/manifest.md に1行追記する
+* 過去の未解決課題を解消した場合は、その記録の resolves に対象ファイル名を記載する
 * 特に製品改善につながる気づきや課題は必ず記録する
 
 ## 5. 完了の定義 (Definition of Done)

@@ -1,3 +1,12 @@
+---
+type: task-record
+date: 
+status: open   # open | resolved
+tags: []       # 対象フォーム名・機能領域など
+related: []    # 関連する記録ファイルや参照ドキュメントへのパス
+resolves: []   # このタスクで解消した過去の未解決課題（記録ファイル名）
+---
+
 # {タスク名}
 
 - 日付:
