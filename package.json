@@ -1,0 +1,33 @@
+{
+  "name": "pj-customer-portal",
+  "version": "1.0.0",
+  "description": "コラボフォーム／コラボフロー カスタマイズ実装",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ken-collabostyle/pj-customer-portal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/ken-collabostyle/pj-customer-portal/issues"
+  },
+  "homepage": "https://github.com/ken-collabostyle/pj-customer-portal#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}
