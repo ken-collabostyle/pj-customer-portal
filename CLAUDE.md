@@ -4,6 +4,7 @@
 ## 1. 推論 (Reasoning)
 * 着手前に docs/ 配下の関連仕様（コラボフローAPI、コラボフォームJS API、フォーム構造JSON等）を確認する
 * タスクをステップに分解し、着手前に計画をチャットで宣言する
+* 複数ステップにまたがる作業計画は docs/plans/ に保存する（テンプレートは docs/plans/README.md を参照）。中断・再開の起点となるため、進捗に応じて随時更新し、docs/plans/manifest.md にも反映する
 * 変更が他のフォーム・他モジュールに与える影響を事前に検討する
 
 ## 2. 行動 (Acting)
@@ -22,6 +23,7 @@
 * 記録のフロントマター（type, date, status, tags, related, resolves）を埋め、docs/agent-records/manifest.md に1行追記する
 * 過去の未解決課題を解消した場合は、その記録の resolves に対象ファイル名を記載する
 * 特に製品改善につながる気づきや課題は必ず記録する
+* 対応する docs/plans/ の計画がある場合は、実施記録完了時に計画側の status も completed に更新し、related で相互参照する
 
 ## 5. 完了の定義 (Definition of Done)
 * 要求された機能が実装されている
