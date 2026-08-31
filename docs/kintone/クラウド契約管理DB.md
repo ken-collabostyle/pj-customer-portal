@@ -2,7 +2,7 @@
 
 「顧客番号」をキーに検索し、対象顧客の契約中ライセンス・商品を明細形式で取得する。**1レコード＝1顧客の1商品／1ライセンス行**という構造（顧客番号で複数レコードを取得し、フォームの「ご注文内容」明細に対応させる想定）。
 
-取得方法：kintone REST API `GET /k/v1/records.json?app=73&query=顧客番号="{顧客番号}"`（フィールドコード`顧客番号`でクエリ）。認証情報は`.env`の`KINTONE_BASE_URL` / `KINTONE_API_TOKEN`を使用（実値はこのファイルに書かない）。
+取得方法：kintone REST API `GET /k/v1/records.json?app=73&query=顧客番号="{顧客番号}"`（フィールドコード`顧客番号`でクエリ）。認証情報は`.env`の`KINTONE_BASE_URL` / `KINTONE_CONTRACT_DB_APP_ID` / `KINTONE_CONTRACT_DB_API_TOKEN`を使用（実値はこのファイルに書かない）。
 
 2026-08-25時点のフィールドコード（`getFormFields` APIで取得、2026-08-25更新版）にもとづく。
 
