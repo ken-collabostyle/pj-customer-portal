@@ -30,7 +30,13 @@
 
 kintoneの2アプリへアクセスするため、コラボフォームの管理画面「設定＞プロキシAPI」で以下の2エンドポイントを**管理者が**作成する必要があります。この設定はUIでの手作業のみで、APIでの自動化はできません（[proxy-api.md](../collaboform-js-api/proxy-api.md)参照）。
 
-kintone REST APIの`GET /k/v1/records.json`は「アプリID」「検索条件（query）」をクエリパラメーターとして受け取りますが、これらは秘匿情報ではないため、管理画面には固定設定せず、JavaScript側から`collaboform.proxy.call()`の`options.query`で都度渡す設計にします。管理画面で固定するのは接続先ホストと認証ヘッダーのみです。
+### 顧客番号はクライアント（JS）側に一切持たせない（重要・2026-08-25確認）
+
+`kintone-contract-db`は顧客ごとの契約情報を返すため、検索条件に「顧客番号」を含める必要がある。しかし**顧客番号をJavaScript側（クライアント）で扱うと、値を書き換えることで他社の契約情報を不正取得できてしまう**（ユーザー確認済みの設計方針）。
+
+本来は、プロキシAPI側でログインユーザーの拡張フィールド（ユーザーごとに紐づく顧客番号）を自動的にリクエストへ差し込む機能を使う想定だが、**この「ユーザー拡張フィールドをプロキシリクエストに差し込む」機能はコラボフォームに現時点で実装されていない**（2026-08-25時点、要ユーザー確認・製品への改善要望候補）。
+
+このため、機能が実装されるまでの**暫定対応**として、`kintone-contract-db`エンドポイントの`query`パラメーターに固定のテスト用顧客番号を管理画面側で設定する（JS側は顧客番号を一切渡さない）。将来、拡張フィールド差し込み機能が実装された時点で、この固定値を差し替える想定。テスト用顧客番号は未確定（ユーザーから追って連絡）。
 
 ### エンドポイント1：`kintone-contract-db`（クラウド契約管理DB用）
 
@@ -40,11 +46,13 @@ kintone REST APIの`GET /k/v1/records.json`は「アプリID」「検索条件�
 | HTTPメソッド | GET |
 | 接続先ホスト | `https://devaqvqwv.cybozu.com` |
 | パス | `/k/v1/records.json` |
-| クエリパラメーター | 空（JS側から`app`・`query`を渡す） |
+| クエリパラメーター | `app=73`、`query=顧客番号="<テスト用顧客番号・未確定>"`（両方とも管理画面側で固定。**暫定対応、詳細は上記参照**） |
 | リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_CONTRACT_DB_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
 | ステータス | 有効 |
 
 ### エンドポイント2：`kintone-product-master`（商品マスタ用）
+
+商品マスタは顧客に依存しないマスタデータのため、`app`のみ固定すればよい（顧客番号のような機微な絞り込み条件は不要）。
 
 | 項目 | 設定値 |
 |---|---|
@@ -52,22 +60,21 @@ kintone REST APIの`GET /k/v1/records.json`は「アプリID」「検索条件�
 | HTTPメソッド | GET |
 | 接続先ホスト | `https://devaqvqwv.cybozu.com` |
 | パス | `/k/v1/records.json` |
-| クエリパラメーター | 空（JS側から`app`・`query`を渡す） |
+| クエリパラメーター | `app=<.envのKINTONE_PRODUCT_MASTER_APP_IDの値>`（管理画面側で固定） |
 | リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_PRODUCT_MASTER_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
 | ステータス | 有効 |
 
 ### JavaScript側の呼び出しイメージ（フェーズ1で実装）
 
 ```javascript
-collaboform.proxy.call('kintone-contract-db', {
-  query: { app: 73, query: `顧客番号="${customerNumber}"` }
-}).then(function (response) {
+// 顧客番号・アプリIDはどちらもプロキシAPI管理画面側の固定設定で解決されるため、JS側では一切指定しない
+collaboform.proxy.call('kintone-contract-db').then(function (response) {
   // response.body.records に明細行が入る
 });
 ```
 
-商品マスタのアプリIDは`.env`の`KINTONE_PRODUCT_MASTER_APP_ID`を参照。
-
 ### 設定状況
 
-- 上記2エンドポイントの作成はユーザー自身（コラボフォーム管理者権限を保有）が検証環境で行う（2026-08-25確認）。作成完了後、Playwright MCPでの動作確認に進む。
+- 上記2エンドポイントの作成はユーザー自身（コラボフォーム管理者権限を保有）が検証環境で行い、2026-08-25に完了。
+- `kintone-contract-db`の`query`固定値（テスト用顧客番号）は未設定。ユーザーから顧客番号の連絡を受け次第、管理画面側で設定する。
+- 動作確認はユーザーが手動で行う方針（[docs/plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md](../plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md)参照）。
