@@ -236,16 +236,46 @@
                         "name": "変更後商品価格"
                     },
                     "fidAddedProductName": {
-                        "display": true,
-                        "input_format": "",
-                        "display_format": "",
+                        "search_keys": [
+                            {
+                                "code": "文字列__1行__0",
+                                "display": true,
+                                "relation_part_id": ""
+                            }
+                        ],
                         "hint": "",
                         "required": false,
-                        "type": "text",
+                        "master_type": "kintone",
                         "comment": "",
-                        "max_length": 50,
-                        "default": "",
-                        "name": "追加商品名"
+                        "name": "追加商品名",
+                        "master_name": "【検証用】商品マスタ",
+                        "inputtable": true,
+                        "search_result": {
+                            "max_row": 20,
+                            "display_columns": [
+                                "文字列__1行_",
+                                "文字列__1行__0",
+                                "標準売価"
+                            ],
+                            "order": "asc",
+                            "order_column": "$id"
+                        },
+                        "type": "lookup",
+                        "data_placements": [
+                            {
+                                "master_field": "文字列__1行_",
+                                "relation_part_id": "fidAddedProductCode"
+                            },
+                            {
+                                "master_field": "標準売価",
+                                "relation_part_id": "fidAddedProductUnitPrice"
+                            },
+                            {
+                                "master_field": "ラジオボタン_0",
+                                "relation_part_id": "fidAddedProductUnit"
+                            }
+                        ],
+                        "default": ""
                     },
                     "fidChangedProductQuantity": {
                         "display": true,
@@ -293,13 +323,13 @@
                     "fidCurrentProductQuantity",
                     "fidChangedProductQuantity",
                     "fidChangedProductUnit",
-                    "fidAddedProductName",
                     "fidAddedProductCode",
                     "fidAddedProductUnitPrice",
                     "fidAddedProductQuantity",
                     "fidAddedProductUnit",
                     "fidAddedProductPrice",
-                    "fidChangedProductPrice"
+                    "fidChangedProductPrice",
+                    "fidAddedProductName"
                 ],
                 "display_row_number": false,
                 "name": "table"
