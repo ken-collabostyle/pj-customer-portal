@@ -144,3 +144,96 @@ export function buildLineItems(records: ContractRecord[]): ContractLineItem[] {
     currentQuantity: record.quantity,
   }));
 }
+
+// ===== 変更適用希望年月：デフォルト値・選択可能範囲（フェーズ1ステップf） =====
+// 祝日データはsrc/forms/japan-holidays.tsを参照。営業日計算はここでは祝日Setを引数で受け取るのみで、
+// 具体的な祝日データには依存しない（ユニットテストで任意の祝日データを注入できるようにするため）。
+
+export interface ApplyMonth {
+  year: number;
+  month: number; // 1-12
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** 土日でも祝日（`holidays`に含まれる日付）でもなければ営業日とみなす。 */
+export function isBusinessDay(date: Date, holidays: ReadonlySet<string>): boolean {
+  const dayOfWeek = date.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  return !isWeekend && !holidays.has(toDateKey(date));
+}
+
+/** 指定年月の営業日一覧を日付昇順で返す。 */
+export function getBusinessDaysOfMonth(
+  year: number,
+  month: number,
+  holidays: ReadonlySet<string>
+): Date[] {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const businessDays: Date[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    if (isBusinessDay(date, holidays)) {
+      businessDays.push(date);
+    }
+  }
+  return businessDays;
+}
+
+/**
+ * 指定年月の「最終営業日から数えて3番目（3rd-from-last）の営業日」を返す。
+ * 「月末から3営業日前になったら翌月以降のみ選択可」という当月選択可能期限日として使用する。
+ * 当月の営業日が3日未満という稀なケースでは、その月の最初の営業日を基準とする。
+ */
+export function getCutoffBusinessDay(
+  year: number,
+  month: number,
+  holidays: ReadonlySet<string>
+): Date | undefined {
+  const businessDays = getBusinessDaysOfMonth(year, month, holidays);
+  if (businessDays.length === 0) {
+    return undefined;
+  }
+  return businessDays[Math.max(0, businessDays.length - 3)];
+}
+
+/**
+ * 変更適用希望年月として選択可能な最も早い年月を計算する。
+ * 当月選択可能期限日（{@link getCutoffBusinessDay}）以降（当日を含む）は翌月、
+ * それより前なら当月を返す。12月から翌年1月への年またぎにも対応する。
+ */
+export function computeEarliestAllowedApplyMonth(
+  today: Date,
+  holidays: ReadonlySet<string>
+): ApplyMonth {
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const cutoff = getCutoffBusinessDay(year, month, holidays);
+  const isOnOrAfterCutoff = cutoff !== undefined && toDateKey(today) >= toDateKey(cutoff);
+
+  if (!isOnOrAfterCutoff) {
+    return { year, month };
+  }
+  return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+}
+
+/**
+ * 選択された変更適用希望年月が、現在の日付から計算した最早選択可能年月以上かどうかを判定する。
+ */
+export function isApplyMonthSelectionAllowed(
+  selectedYear: number,
+  selectedMonth: number,
+  today: Date,
+  holidays: ReadonlySet<string>
+): boolean {
+  const earliest = computeEarliestAllowedApplyMonth(today, holidays);
+  if (selectedYear !== earliest.year) {
+    return selectedYear > earliest.year;
+  }
+  return selectedMonth >= earliest.month;
+}

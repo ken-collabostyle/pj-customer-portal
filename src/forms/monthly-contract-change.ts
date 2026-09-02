@@ -7,13 +7,16 @@
 import {
   buildCurrentContractSummary,
   buildLineItems,
+  computeEarliestAllowedApplyMonth,
   extractUniqueInstances,
   filterActiveMonthlyRecords,
   filterRecordsByInstance,
+  isApplyMonthSelectionAllowed,
   toContractRecord,
   type ContractRecord,
   type RawKintoneRecord,
 } from "./monthly-contract-change-logic";
+import { JAPAN_HOLIDAYS } from "./japan-holidays";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db";
 
@@ -32,6 +35,9 @@ const LINE_ITEM_COLUMN_PART_IDS = {
   currentQuantity: "fidCurrentProductQuantity",
   changedQuantity: "fidChangedProductQuantity",
 } as const;
+
+const CHANGE_APPLY_YEAR_PART_ID = "fidChangeApplyYear";
+const CHANGE_APPLY_MONTH_PART_ID = "fidChangeApplyMonth";
 
 const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // チェックボックスのチェック時表示コメント（docs/forms/json/【クラウド版】注文書兼利用申込書（月額：契約変更）.json:159参照）。
@@ -88,6 +94,9 @@ let cancelQuantityLockFailed = false;
 
 const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
   "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+const CHANGE_APPLY_MONTH_TOO_EARLY_MESSAGE =
+  "選択された変更適用希望年月では申請できません。当月分は申込期限（当月最終営業日から3営業日前）を過ぎているため、翌月以降を選択してください。";
 
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
@@ -241,6 +250,29 @@ function buildInstanceSelector(instances: string[], data: CollaboformEventData):
   wrapper.appendChild(select);
 }
 
+/**
+ * 変更適用希望年月の選択値が、当日から計算した最早選択可能年月以上かを検証する
+ * （ステップfの実装。当月選択可能期限日の定義は monthly-contract-change-logic.ts 参照）。
+ * ドロップダウンの選択肢自体は制限せず、確認・送信のタイミングでブロックする方針
+ * （fidChangeApplyMonthはMantineのSelectコンボボックスで選択肢一覧が開いた時のみ
+ * DOMにレンダリングされ、選択肢を削除するDOM操作は非常に脆弱なため）。
+ */
+function validateChangeApplyMonth(data: CollaboformEventData): boolean {
+  const selectedYear = Number(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
+  const selectedMonth = Number(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
+
+  if (Number.isNaN(selectedYear) || Number.isNaN(selectedMonth)) {
+    return true;
+  }
+
+  if (isApplyMonthSelectionAllowed(selectedYear, selectedMonth, new Date(), JAPAN_HOLIDAYS)) {
+    return true;
+  }
+
+  alert(CHANGE_APPLY_MONTH_TOO_EARLY_MESSAGE);
+  return false;
+}
+
 function blockSubmissionIfDataIssueDetected(): boolean {
   if (instanceSelectorInitFailed) {
     alert(INSTANCE_SELECTOR_FAILURE_MESSAGE);
@@ -270,6 +302,12 @@ function blockSubmissionIfDataIssueDetected(): boolean {
 }
 
 collaboform.events.on("form.show", function (data) {
+  // ===== ステップf: 変更適用希望年月のデフォルト値 =====
+  // kintone連携（インスタンス名・契約情報）とは独立した処理のため、プロキシ呼び出しの完了を待たず即時セットする。
+  const earliestApplyMonth = computeEarliestAllowedApplyMonth(new Date(), JAPAN_HOLIDAYS);
+  setPartValue(data, CHANGE_APPLY_YEAR_PART_ID, String(earliestApplyMonth.year));
+  setPartValue(data, CHANGE_APPLY_MONTH_PART_ID, String(earliestApplyMonth.month));
+
   collaboform.proxy
     .call(KINTONE_CONTRACT_DB_ENDPOINT)
     .then(function (response) {
@@ -330,5 +368,9 @@ collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) 
   setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
-collaboform.events.on("form.confirm", blockSubmissionIfDataIssueDetected);
-collaboform.events.on("form.submit", blockSubmissionIfDataIssueDetected);
+collaboform.events.on("form.confirm", function (data) {
+  return blockSubmissionIfDataIssueDetected() && validateChangeApplyMonth(data);
+});
+collaboform.events.on("form.submit", function (data) {
+  return blockSubmissionIfDataIssueDetected() && validateChangeApplyMonth(data);
+});
