@@ -62,6 +62,16 @@ resolves: []
 - kintoneのフィールドコードは、要求事項ドキュメントの記載だけでなく`getFormFields` APIの生レスポンスで必ず突合すべき（半角/全角の数字違い、ラベルとコードの不一致など、目視だけでは気づきにくい誤りが複数見つかった）
 - コラボフォームJS APIのDOM非依存な公式イベント（`form.confirm`/`form.submit`のfalse return）は、DOM依存の非公式実装（Mantine構造への直接アクセス）が失敗した場合のフェイルセーフとして有効。「非公式な実装のリスクを、公式APIのフェイルセーフで受け止める」設計パターンとして次のステップ以降でも再利用できる
 
+## 追記（2026-09-02、フィールドコードマッピングの分離）
+
+ユーザーから「kintoneフィールドコードは設定で変更されうるため、変更時の影響箇所を最小化したい」との要望を受け、以下の設計変更を追加実施した。
+
+- `CONTRACT_DB_FIELD_CODES`（フィールドコード対応表）を`monthly-contract-change-logic.ts`に集約し、これ以外の箇所からkintoneのフィールドコード文字列を一切参照しない構成に変更
+- `toContractRecord()`アダプター関数を追加し、kintoneの生レコード（フィールドコードがキー）を、安定した名前を持つ内部ドメインモデル`ContractRecord`（`instanceName` / `corporateName` / `category`等）に変換
+- `isActiveMonthlyRecord`等の既存ロジック関数・テストは全て内部ドメインモデルのみを参照するよう書き換え
+- 効果：将来kintone側でフィールドコードが変更された場合、`CONTRACT_DB_FIELD_CODES`の1箇所を修正するだけで済む
+- `npm run lint` / `npm run typecheck` / `npm run test`（16件、`toContractRecord`のテスト2件を追加）はすべて通過
+
 ## 未解決課題・申し送り事項
 
 - 明細テーブルの「変更後商品単位」（`fidChangedProductUnit`）に対応するkintoneフィールドが見つからない。現状は空欄のまま。ユーザーに別途確認が必要（固定文言でよいか、他アプリに情報があるか等）
