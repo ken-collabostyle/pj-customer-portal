@@ -63,6 +63,20 @@ let noActiveContractFound = false;
 const NO_ACTIVE_CONTRACT_MESSAGE =
   "現在契約中の契約情報が取得できませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+// 明細行数がフォームの明細テーブル最大行数を超えた場合（運用上は起こらない想定だが、TC-21の実機確認結果を
+// 受けてフェイルセーフとして追加）に立てるフラグ。インスタンス切り替えで行数が収まった場合はfalseにリセットする。
+let lineItemsExceedTableCapacity = false;
+
+const LINE_ITEMS_EXCEED_CAPACITY_MESSAGE =
+  "明細行数がフォームの上限を超えているため、全ての商品を表示できません。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+// kintone-contract-dbエンドポイントの呼び出しに失敗した場合（プロキシ側エラー・通信エラーいずれも。
+// TC-23の実機確認結果を受けてフェイルセーフとして追加）に立てるフラグ。
+let kintoneCallFailed = false;
+
+const KINTONE_CALL_FAILED_MESSAGE =
+  "契約情報の取得に失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
 }
@@ -97,6 +111,10 @@ function applyLineItemsToTable(
     console.warn(
       `[monthly-contract-change] 明細行数(${lineItems.length})がフォームの明細テーブル行数(${tableRows.length})を超えています。超過分は反映されません。`
     );
+    lineItemsExceedTableCapacity = true;
+    alert(LINE_ITEMS_EXCEED_CAPACITY_MESSAGE);
+  } else {
+    lineItemsExceedTableCapacity = false;
   }
 
   tableRows.forEach((row, index) => {
@@ -198,6 +216,14 @@ function blockSubmissionIfDataIssueDetected(): boolean {
     alert(NO_ACTIVE_CONTRACT_MESSAGE);
     return false;
   }
+  if (lineItemsExceedTableCapacity) {
+    alert(LINE_ITEMS_EXCEED_CAPACITY_MESSAGE);
+    return false;
+  }
+  if (kintoneCallFailed) {
+    alert(KINTONE_CALL_FAILED_MESSAGE);
+    return false;
+  }
   return true;
 }
 
@@ -209,6 +235,8 @@ collaboform.events.on("form.show", function (data) {
         console.error(
           `[monthly-contract-change] ${KINTONE_CONTRACT_DB_ENDPOINT}の呼び出しに失敗しました。status=${response.status}`
         );
+        kintoneCallFailed = true;
+        alert(KINTONE_CALL_FAILED_MESSAGE);
         return;
       }
 
@@ -235,6 +263,8 @@ collaboform.events.on("form.show", function (data) {
       console.error(
         `[monthly-contract-change] ${KINTONE_CONTRACT_DB_ENDPOINT}への通信でエラーが発生しました。`
       );
+      kintoneCallFailed = true;
+      alert(KINTONE_CALL_FAILED_MESSAGE);
     });
 });
 
