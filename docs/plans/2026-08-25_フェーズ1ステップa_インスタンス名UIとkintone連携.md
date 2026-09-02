@@ -1,13 +1,18 @@
 ---
 type: plan
 date: 2026-08-25
-status: in-progress
+status: completed
 tags: [顧客ポータル, 月額契約変更, kintone連携, フェーズ1]
 related:
   - docs/plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md
   - docs/forms/requirements/【クラウド版】注文書兼利用申込書（月額：契約変更）.md
   - docs/forms/requirements/【クラウド版】注文書兼利用申込書（月額：契約変更）_実装メモ.md
   - docs/kintone/README.md
+  - docs/agent-records/2026-09-02_フェーズ1ステップa_インスタンス名UIとkintone連携_実装.md
+  - docs/agent-records/2026-09-02_フェーズ1ステップa_実機確認と対応.md
+  - docs/agent-records/2026-09-02_フェーズ1ステップa_TC-19プルダウン表示崩れ対応.md
+  - docs/agent-records/2026-09-02_フェーズ1ステップa_TC-21_TC-23対応.md
+  - docs/agent-records/2026-09-02_フェーズ1ステップa_TC-25_TC-26確認.md
 ---
 
 # フェーズ1 ステップa 詳細計画：インスタンス名UI＋kintoneから現在契約情報を取得・表示
@@ -84,7 +89,18 @@ related:
 
 ## 実装状況（2026-09-02）
 
-コード実装が完了。`npm run lint` / `npm run typecheck` / `npm run test`はすべて通過、`npm run build`でdist生成も確認済み。詳細は[実施記録](../agent-records/2026-09-02_フェーズ1ステップa_インスタンス名UIとkintone連携_実装.md)を参照。**実機（検証環境）での動作確認は未実施**（テスト用顧客番号未設定のため、上記前提が解消され次第ユーザーが実施）。
+コード実装が完了。`npm run lint` / `npm run typecheck` / `npm run test`はすべて通過、`npm run build`でdist生成も確認済み。詳細は[実施記録](../agent-records/2026-09-02_フェーズ1ステップa_インスタンス名UIとkintone連携_実装.md)を参照。
+
+## 完了（2026-09-02）
+
+実機（検証環境）での動作確認（TC-01〜TC-26、テスト仕様書は[docs/forms/tests/](../forms/tests/)参照）をすべて完了。確認過程で判明した不具合・データ不整合ケースへのフェイルセーフ追加は以下の実施記録を参照。
+
+- [実機確認と対応](../agent-records/2026-09-02_フェーズ1ステップa_実機確認と対応.md)：プロキシ400エラー（管理画面設定ミス）、TC-17（区分=ベース欠落）、TC-18（有効インスタンス0件）
+- [TC-19対応](../agent-records/2026-09-02_フェーズ1ステップa_TC-19プルダウン表示崩れ対応.md)：プルダウンのフォントサイズ崩れ、単一インスタンス時のインスタンス名編集可能問題
+- [TC-21・TC-23対応](../agent-records/2026-09-02_フェーズ1ステップa_TC-21_TC-23対応.md)：明細行数超過、kintone-contract-db呼び出し失敗
+- [TC-25・TC-26確認](../agent-records/2026-09-02_フェーズ1ステップa_TC-25_TC-26確認.md)：フィールドコード突合、変更後商品単位空欄の運用可否
+
+ステップaはこれでクローズ。次はフェーズ1ステップb（変更後契約数のデフォルト値／解約チェック連動）に着手する（[全体計画](2026-08-24_顧客ポータルカスタマイズ全体計画.md)参照）。
 
 実装中に判明した以下の点は、`docs/kintone/クラウド契約管理DB.md`の生JSON突合（[docs/kintone/json/クラウド契約管理DB_getFormFields.json](../kintone/json/クラウド契約管理DB_getFormFields.json)）を経て、ユーザーに個別確認のうえ決定した。
 
