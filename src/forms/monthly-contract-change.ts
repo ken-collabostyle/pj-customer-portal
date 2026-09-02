@@ -10,7 +10,9 @@ import {
   extractUniqueInstances,
   filterActiveMonthlyRecords,
   filterRecordsByInstance,
+  toContractRecord,
   type ContractRecord,
+  type RawKintoneRecord,
 } from "./monthly-contract-change-logic";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db";
@@ -152,8 +154,9 @@ collaboform.events.on("form.show", function (data) {
         return;
       }
 
-      const body = response.body as { records?: ContractRecord[] };
-      activeMonthlyRecordsCache = filterActiveMonthlyRecords(body.records ?? []);
+      const body = response.body as { records?: RawKintoneRecord[] };
+      const contractRecords = (body.records ?? []).map(toContractRecord);
+      activeMonthlyRecordsCache = filterActiveMonthlyRecords(contractRecords);
 
       const instances = extractUniqueInstances(activeMonthlyRecordsCache);
       if (instances.length === 0) {

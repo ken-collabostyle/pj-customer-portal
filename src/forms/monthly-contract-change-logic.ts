@@ -6,17 +6,56 @@ export interface KintoneFieldValue {
   value: string;
 }
 
+/** kintoneから返る生レコード。キーはフィールドコード（kintone側の設定で変更されうる）。 */
+export type RawKintoneRecord = Record<string, KintoneFieldValue>;
+
+/**
+ * kintone「クラウド契約管理DB」のフィールドコード対応表。
+ * kintone側でフィールドコードが変更された場合は、このオブジェクトのみを修正すればよい
+ * （以降のロジック・テストは`ContractRecord`の安定したプロパティ名のみを参照するため無修正で済む）。
+ */
+export const CONTRACT_DB_FIELD_CODES = {
+  instanceName: "インスタンス",
+  corporateName: "顧客名",
+  category: "区分",
+  billingCycle: "月額年額",
+  contractStatus2: "契約ステータス2",
+  planName: "種類２",
+  quantity: "数量",
+  productCode: "製品型番",
+  unitPrice: "単価_月額_税抜",
+  invoiceServiceName: "サービス名_請求書用",
+} as const;
+
+/** プログラム内部で使う、kintoneのフィールドコード変更に影響されない安定したドメインモデル。 */
 export interface ContractRecord {
-  インスタンス: KintoneFieldValue;
-  顧客名: KintoneFieldValue;
-  区分: KintoneFieldValue;
-  月額年額: KintoneFieldValue;
-  契約ステータス2: KintoneFieldValue;
-  種類２: KintoneFieldValue;
-  数量: KintoneFieldValue;
-  製品型番: KintoneFieldValue;
-  単価_月額_税抜: KintoneFieldValue;
-  サービス名_請求書用: KintoneFieldValue;
+  instanceName: string;
+  corporateName: string;
+  category: string;
+  billingCycle: string;
+  contractStatus2: string;
+  planName: string;
+  quantity: string;
+  productCode: string;
+  unitPrice: string;
+  invoiceServiceName: string;
+}
+
+/** kintoneの生レコードを、フィールドコード対応表経由で内部ドメインモデルへ変換する。 */
+export function toContractRecord(raw: RawKintoneRecord): ContractRecord {
+  const getValue = (fieldCode: string): string => raw[fieldCode]?.value ?? "";
+  return {
+    instanceName: getValue(CONTRACT_DB_FIELD_CODES.instanceName),
+    corporateName: getValue(CONTRACT_DB_FIELD_CODES.corporateName),
+    category: getValue(CONTRACT_DB_FIELD_CODES.category),
+    billingCycle: getValue(CONTRACT_DB_FIELD_CODES.billingCycle),
+    contractStatus2: getValue(CONTRACT_DB_FIELD_CODES.contractStatus2),
+    planName: getValue(CONTRACT_DB_FIELD_CODES.planName),
+    quantity: getValue(CONTRACT_DB_FIELD_CODES.quantity),
+    productCode: getValue(CONTRACT_DB_FIELD_CODES.productCode),
+    unitPrice: getValue(CONTRACT_DB_FIELD_CODES.unitPrice),
+    invoiceServiceName: getValue(CONTRACT_DB_FIELD_CODES.invoiceServiceName),
+  };
 }
 
 const BASE_CATEGORY = "ベース";
@@ -30,8 +69,8 @@ const ACTIVE_CONTRACT_STATUS = "契約中";
  */
 export function isActiveMonthlyRecord(record: ContractRecord): boolean {
   return (
-    record.月額年額.value === MONTHLY_BILLING_CYCLE &&
-    record.契約ステータス2.value === ACTIVE_CONTRACT_STATUS
+    record.billingCycle === MONTHLY_BILLING_CYCLE &&
+    record.contractStatus2 === ACTIVE_CONTRACT_STATUS
   );
 }
 
@@ -43,7 +82,7 @@ export function extractUniqueInstances(records: ContractRecord[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const record of records) {
-    const instance = record.インスタンス.value;
+    const instance = record.instanceName;
     if (instance !== "" && !seen.has(instance)) {
       seen.add(instance);
       result.push(instance);
@@ -56,11 +95,11 @@ export function filterRecordsByInstance(
   records: ContractRecord[],
   instanceName: string
 ): ContractRecord[] {
-  return records.filter((record) => record.インスタンス.value === instanceName);
+  return records.filter((record) => record.instanceName === instanceName);
 }
 
 export function findBaseRecord(records: ContractRecord[]): ContractRecord | undefined {
-  return records.find((record) => record.区分.value === BASE_CATEGORY);
+  return records.find((record) => record.category === BASE_CATEGORY);
 }
 
 export interface CurrentContractSummary {
@@ -77,9 +116,9 @@ export function buildCurrentContractSummary(
     return undefined;
   }
   return {
-    corporateName: baseRecord.顧客名.value,
-    currentPlan: baseRecord.種類２.value,
-    currentUserCount: baseRecord.数量.value,
+    corporateName: baseRecord.corporateName,
+    currentPlan: baseRecord.planName,
+    currentUserCount: baseRecord.quantity,
   };
 }
 
@@ -92,16 +131,16 @@ export interface ContractLineItem {
 
 /**
  * 明細テーブルの1行に相当するデータへ変換する。
- * 商品名は`サービス名_請求書用`を使用（2026-09-02 ユーザー確認済み。
+ * 商品名は`invoiceServiceName`（kintoneの`サービス名_請求書用`）を使用（2026-09-02 ユーザー確認済み。
  * クラウド契約管理DBに「商品名」専用フィールドが存在しないため代替）。
- * 単価は月額契約のみを対象としているため`単価_月額_税抜`固定でよい
+ * 単価は月額契約のみを対象としているため`unitPrice`固定でよい
  * （年額契約は`isActiveMonthlyRecord`で除外済み）。
  */
 export function buildLineItems(records: ContractRecord[]): ContractLineItem[] {
   return records.map((record) => ({
-    productName: record.サービス名_請求書用.value,
-    productCode: record.製品型番.value,
-    unitPrice: record.単価_月額_税抜.value,
-    currentQuantity: record.数量.value,
+    productName: record.invoiceServiceName,
+    productCode: record.productCode,
+    unitPrice: record.unitPrice,
+    currentQuantity: record.quantity,
   }));
 }
