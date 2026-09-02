@@ -142,6 +142,8 @@ function buildInstanceSelector(instances: string[], data: CollaboformEventData):
 
   const select = document.createElement("select");
   select.setAttribute("data-role", "instance-selector-fallback");
+  // ネイティブinputと同じMantineクラスを付与し、フォントサイズ等の見た目を揃える（TC-19で発覚した表示崩れの対応）。
+  select.className = nativeInput.className;
   for (const instance of instances) {
     const option = document.createElement("option");
     option.value = instance;
