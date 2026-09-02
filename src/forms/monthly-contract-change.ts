@@ -44,6 +44,15 @@ let instanceSelectorInitFailed = false;
 const INSTANCE_SELECTOR_FAILURE_MESSAGE =
   "契約インスタンスの選択UIが正しく表示できませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+// 選択中インスタンスに区分=ベースのレコードが見つからない場合（データ不整合。運用上は起こらない想定だが
+// kintone側の入力ミス等で発生しうるため、TC-17の実機確認結果を受けてフェイルセーフとして追加）に立てるフラグ。
+// instanceSelectorInitFailedとは原因が異なるため、混在させず別名で管理する。インスタンス切り替えで
+// 正常なレコードに戻った場合はfalseにリセットする。
+let baseRecordMissing = false;
+
+const BASE_RECORD_MISSING_MESSAGE =
+  "選択されたインスタンスの契約情報（現在契約プラン等）が見つかりませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
 }
@@ -56,10 +65,13 @@ function applyInstanceData(instanceName: string, data: CollaboformEventData): vo
     setPartValue(data, CORPORATE_NAME_PART_ID, summary.corporateName);
     setPartValue(data, CURRENT_PLAN_PART_ID, summary.currentPlan);
     setPartValue(data, CURRENT_USER_COUNT_PART_ID, summary.currentUserCount);
+    baseRecordMissing = false;
   } else {
     console.error(
       `[monthly-contract-change] インスタンス「${instanceName}」に区分=ベースのレコードが見つかりませんでした。`
     );
+    baseRecordMissing = true;
+    alert(BASE_RECORD_MISSING_MESSAGE);
   }
 
   applyLineItemsToTable(buildLineItems(recordsForInstance), data);
@@ -135,12 +147,16 @@ function buildInstanceSelector(instances: string[], data: CollaboformEventData):
   wrapper.appendChild(select);
 }
 
-function blockIfInstanceSelectorFailed(): boolean {
-  if (!instanceSelectorInitFailed) {
-    return true;
+function blockSubmissionIfDataIssueDetected(): boolean {
+  if (instanceSelectorInitFailed) {
+    alert(INSTANCE_SELECTOR_FAILURE_MESSAGE);
+    return false;
   }
-  alert(INSTANCE_SELECTOR_FAILURE_MESSAGE);
-  return false;
+  if (baseRecordMissing) {
+    alert(BASE_RECORD_MISSING_MESSAGE);
+    return false;
+  }
+  return true;
 }
 
 collaboform.events.on("form.show", function (data) {
@@ -178,5 +194,5 @@ collaboform.events.on("form.show", function (data) {
     });
 });
 
-collaboform.events.on("form.confirm", blockIfInstanceSelectorFailed);
-collaboform.events.on("form.submit", blockIfInstanceSelectorFailed);
+collaboform.events.on("form.confirm", blockSubmissionIfDataIssueDetected);
+collaboform.events.on("form.submit", blockSubmissionIfDataIssueDetected);
