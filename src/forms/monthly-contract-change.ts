@@ -33,6 +33,11 @@ const LINE_ITEM_COLUMN_PART_IDS = {
   changedQuantity: "fidChangedProductQuantity",
 } as const;
 
+const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
+// チェックボックスのチェック時表示コメント（docs/forms/json/【クラウド版】注文書兼利用申込書（月額：契約変更）.json:159参照）。
+// parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
+const CANCEL_CHECKED_VALUE = "解約";
+
 // kintoneから取得した「現在有効な月額契約」レコードのローカルキャッシュ。
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
 let activeMonthlyRecordsCache: ContractRecord[] = [];
@@ -76,6 +81,13 @@ let kintoneCallFailed = false;
 
 const KINTONE_CALL_FAILED_MESSAGE =
   "契約情報の取得に失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+// 解約チェック連動で「変更後契約数」入力欄をロックする際のDOM操作に失敗した場合
+// （DOM構造不一致。ステップbの実装で追加）に立てるフラグ。
+let cancelQuantityLockFailed = false;
+
+const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
+  "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
@@ -154,6 +166,32 @@ function lockInstanceNameField(): void {
 }
 
 /**
+ * 明細行の「変更後契約数」入力欄を解約チェック連動でロック/アンロックする
+ * （DOM構造に直接依存する非公式実装。ステップbの実装で追加）。
+ * 公式API（parts.enabled）はパーツの有効/無効を設定できない仕様のため、lockInstanceNameFieldと
+ * 同じパターンでDOM操作により対応する。失敗時は cancelQuantityLockFailed を立て、
+ * form.confirm / form.submit で申請自体をブロックする。
+ */
+function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void {
+  const nativeInput = document.getElementById(
+    `table:${rowIndex}:${LINE_ITEM_COLUMN_PART_IDS.changedQuantity}`
+  );
+
+  if (!(nativeInput instanceof HTMLInputElement)) {
+    cancelQuantityLockFailed = true;
+    console.error(
+      `[monthly-contract-change] ${rowIndex}行目の「変更後契約数」入力欄のロックに失敗しました。` +
+        "DOM構造が想定と異なります（コラボフォームのUIライブラリのバージョンアップ等が原因の可能性）。" +
+        ` nativeInput=${String(nativeInput)}`
+    );
+    alert(CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE);
+    return;
+  }
+
+  nativeInput.readOnly = locked;
+}
+
+/**
  * 複数インスタンス時のプルダウン代替UIを構築する（DOM構造に直接依存する非公式実装）。
  * リスク: コラボフォームのUIライブラリ（Mantine）がバージョンアップ等でDOM構造・クラス名を
  * 変更した場合、動作しなくなる可能性がある。要求事項の実現に必要な措置として実施する。
@@ -224,6 +262,10 @@ function blockSubmissionIfDataIssueDetected(): boolean {
     alert(KINTONE_CALL_FAILED_MESSAGE);
     return false;
   }
+  if (cancelQuantityLockFailed) {
+    alert(CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE);
+    return false;
+  }
   return true;
 }
 
@@ -266,6 +308,26 @@ collaboform.events.on("form.show", function (data) {
       kintoneCallFailed = true;
       alert(KINTONE_CALL_FAILED_MESSAGE);
     });
+});
+
+// ===== ステップb: 変更後契約数のデフォルト値／解約チェック連動 =====
+// 「解約」チェックON時は変更後契約数を0固定・入力不可に、OFF時は現商品契約数を再セットして入力可能に戻す。
+collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) {
+  if (data.row_index === undefined) {
+    return;
+  }
+
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const row = tableRows[data.row_index - 1];
+  if (!row) {
+    return;
+  }
+
+  const isCancelled = row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE;
+  row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value = isCancelled
+    ? "0"
+    : row[LINE_ITEM_COLUMN_PART_IDS.currentQuantity].value;
+  setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
 collaboform.events.on("form.confirm", blockSubmissionIfDataIssueDetected);
