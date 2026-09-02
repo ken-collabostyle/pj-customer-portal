@@ -273,6 +273,42 @@ function validateChangeApplyMonth(data: CollaboformEventData): boolean {
   return false;
 }
 
+const LOADING_OVERLAY_ID = "monthly-contract-change-loading-overlay";
+
+/**
+ * 初期化処理（kintone連携等）が完了するまで、画面全体を覆うローディング表示を追加し
+ * 入力・クリックをブロックする。既存パーツのDOM構造には依存せず要素を自前で生成するため、
+ * 他のDOM操作（lockInstanceNameField等）と異なりDOM構造不一致による失敗リスクはない。
+ * position:fixedによりスクロールしても常に画面全体を覆う。
+ */
+function showLoadingOverlay(): void {
+  if (document.getElementById(LOADING_OVERLAY_ID)) {
+    return;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = LOADING_OVERLAY_ID;
+  overlay.setAttribute("aria-live", "polite");
+  overlay.style.cssText =
+    "position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;" +
+    "display:flex;align-items:center;justify-content:center;" +
+    "background:rgba(255,255,255,0.85);";
+
+  const message = document.createElement("div");
+  message.textContent = "読み込み中です。しばらくお待ちください…";
+  message.style.cssText =
+    "font-size:16px;color:#23221F;background:#fff;padding:16px 24px;border-radius:4px;" +
+    "box-shadow:0 2px 8px rgba(0,0,0,0.2);";
+
+  overlay.appendChild(message);
+  document.body.appendChild(overlay);
+}
+
+/** {@link showLoadingOverlay} で追加したローディング表示を削除する。 */
+function hideLoadingOverlay(): void {
+  document.getElementById(LOADING_OVERLAY_ID)?.remove();
+}
+
 function blockSubmissionIfDataIssueDetected(): boolean {
   if (instanceSelectorInitFailed) {
     alert(INSTANCE_SELECTOR_FAILURE_MESSAGE);
@@ -302,11 +338,23 @@ function blockSubmissionIfDataIssueDetected(): boolean {
 }
 
 collaboform.events.on("form.show", function (data) {
+  // 初期化処理（本ハンドラー全体）が完了するまでローディング表示で入力をブロックする。
+  showLoadingOverlay();
+
   // ===== ステップf: 変更適用希望年月のデフォルト値 =====
   // kintone連携（インスタンス名・契約情報）とは独立した処理のため、プロキシ呼び出しの完了を待たず即時セットする。
-  const earliestApplyMonth = computeEarliestAllowedApplyMonth(new Date(), JAPAN_HOLIDAYS);
-  setPartValue(data, CHANGE_APPLY_YEAR_PART_ID, String(earliestApplyMonth.year));
-  setPartValue(data, CHANGE_APPLY_MONTH_PART_ID, String(earliestApplyMonth.month));
+  try {
+    const earliestApplyMonth = computeEarliestAllowedApplyMonth(new Date(), JAPAN_HOLIDAYS);
+    setPartValue(data, CHANGE_APPLY_YEAR_PART_ID, String(earliestApplyMonth.year));
+    setPartValue(data, CHANGE_APPLY_MONTH_PART_ID, String(earliestApplyMonth.month));
+  } catch (error) {
+    console.error(
+      "[monthly-contract-change] 変更適用希望年月のデフォルト値セットに失敗しました。",
+      error
+    );
+    hideLoadingOverlay();
+    throw error;
+  }
 
   collaboform.proxy
     .call(KINTONE_CONTRACT_DB_ENDPOINT)
@@ -345,6 +393,9 @@ collaboform.events.on("form.show", function (data) {
       );
       kintoneCallFailed = true;
       alert(KINTONE_CALL_FAILED_MESSAGE);
+    })
+    .finally(function () {
+      hideLoadingOverlay();
     });
 });
 
