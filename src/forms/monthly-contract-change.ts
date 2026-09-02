@@ -53,6 +53,16 @@ let baseRecordMissing = false;
 const BASE_RECORD_MISSING_MESSAGE =
   "選択されたインスタンスの契約情報（現在契約プラン等）が見つかりませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+// kintoneから取得した全レコードの中に「現在有効な月額契約」（区分=ベース かつ 月額年額=月額 かつ
+// 契約ステータス2=契約中）が1件もない場合に立てるフラグ（例：対象レコードが契約ステータス2=切替等の
+// 別ステータスになっているケース。TC-18の実機確認結果を受けてフェイルセーフとして追加）。
+// baseRecordMissingは「選択中インスタンスにベースレコードがない」ケース、こちらは
+// 「有効なインスタンスの選択肢自体が1件もない」ケースであり原因が異なるため別名で管理する。
+let noActiveContractFound = false;
+
+const NO_ACTIVE_CONTRACT_MESSAGE =
+  "現在契約中の契約情報が取得できませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
 }
@@ -156,6 +166,10 @@ function blockSubmissionIfDataIssueDetected(): boolean {
     alert(BASE_RECORD_MISSING_MESSAGE);
     return false;
   }
+  if (noActiveContractFound) {
+    alert(NO_ACTIVE_CONTRACT_MESSAGE);
+    return false;
+  }
   return true;
 }
 
@@ -179,6 +193,8 @@ collaboform.events.on("form.show", function (data) {
         console.error(
           `[monthly-contract-change] ${KINTONE_CONTRACT_DB_ENDPOINT}から現在契約中の月額レコードが取得できませんでした。`
         );
+        noActiveContractFound = true;
+        alert(NO_ACTIVE_CONTRACT_MESSAGE);
         return;
       }
 
