@@ -111,6 +111,31 @@ function applyLineItemsToTable(
 }
 
 /**
+ * 単一インスタンス時、ネイティブのテキスト入力欄をreadOnly化してユーザーによる直接編集を防止する
+ * （DOM構造に直接依存する非公式実装。TC-19の実機確認結果を受けて対応）。
+ * 公式API（parts.enabled）はパーツの有効/無効を設定できない仕様のため、DOM操作で対応する。
+ * readOnlyはキーボード入力のみを防止し、コラボフォームがJS側で保持する値（parts.value、
+ * 公式APIでセット済み）には影響しないため、送信される値は変わらない。
+ * 失敗時は instanceSelectorInitFailed を立て、form.confirm / form.submit で申請自体をブロックする。
+ */
+function lockInstanceNameField(): void {
+  const nativeInput = document.getElementById(INSTANCE_NAME_PART_ID);
+
+  if (!(nativeInput instanceof HTMLInputElement)) {
+    instanceSelectorInitFailed = true;
+    console.error(
+      "[monthly-contract-change] インスタンス名入力欄のロックに失敗しました。" +
+        "DOM構造が想定と異なります（コラボフォームのUIライブラリのバージョンアップ等が原因の可能性）。" +
+        ` nativeInput=${String(nativeInput)}`
+    );
+    alert(INSTANCE_SELECTOR_FAILURE_MESSAGE);
+    return;
+  }
+
+  nativeInput.readOnly = true;
+}
+
+/**
  * 複数インスタンス時のプルダウン代替UIを構築する（DOM構造に直接依存する非公式実装）。
  * リスク: コラボフォームのUIライブラリ（Mantine）がバージョンアップ等でDOM構造・クラス名を
  * 変更した場合、動作しなくなる可能性がある。要求事項の実現に必要な措置として実施する。
@@ -120,7 +145,8 @@ function applyLineItemsToTable(
  */
 function buildInstanceSelector(instances: string[], data: CollaboformEventData): void {
   if (instances.length <= 1) {
-    // 単一インスタンス時は公式API（parts経由）のみで完結するため、DOM操作は行わない。
+    // 単一インスタンス時はプルダウンを使わず、テキスト入力をreadOnly化してインスタンス変更を防止する。
+    lockInstanceNameField();
     return;
   }
 
