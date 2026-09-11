@@ -1,5 +1,5 @@
 {
-    "total_count": 32,
+    "total_count": 30,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 9,
@@ -33,10 +33,10 @@
             "decimal_place": 0,
             "hint": "",
             "required": false,
-            "formula": "DecrementValue(fidOrderSubtotal*1.1)",
+            "formula": "Ceiling(fidOrderSubtotal*0.1)",
             "type": "calculate",
             "comment": "",
-            "add_comma": false,
+            "add_comma": true,
             "name": "ご注文消費税"
         },
         "fidCurrentContractUserCount": {
@@ -173,7 +173,7 @@
                         "formula": "fidAddedProductUnitPrice*fidAddedProductQuantity",
                         "type": "calculate",
                         "comment": "",
-                        "add_comma": false,
+                        "add_comma": true,
                         "name": "追加商品価格"
                     },
                     "fidChangedProductName": {
@@ -188,18 +188,6 @@
                         "default": "",
                         "name": "変更後商品名"
                     },
-                    "fidChangedProductUnit": {
-                        "display": true,
-                        "input_format": "",
-                        "display_format": "",
-                        "hint": "",
-                        "required": false,
-                        "type": "text",
-                        "comment": "",
-                        "max_length": 20,
-                        "default": "",
-                        "name": "変更後商品単位"
-                    },
                     "fidChangedProductUnitPrice": {
                         "display": true,
                         "decimal_place": 0,
@@ -212,18 +200,6 @@
                         "add_comma": true,
                         "name": "変更後商品単価"
                     },
-                    "fidAddedProductUnit": {
-                        "display": true,
-                        "input_format": "",
-                        "display_format": "",
-                        "hint": "",
-                        "required": false,
-                        "type": "text",
-                        "comment": "",
-                        "max_length": 20,
-                        "default": "",
-                        "name": "追加商品単位"
-                    },
                     "fidChangedProductPrice": {
                         "calc_type": "number",
                         "decimal_place": 0,
@@ -232,7 +208,7 @@
                         "formula": "fidChangedProductQuantity*fidChangedProductUnitPrice",
                         "type": "calculate",
                         "comment": "",
-                        "add_comma": false,
+                        "add_comma": true,
                         "name": "変更後商品価格"
                     },
                     "fidAddedProductName": {
@@ -254,8 +230,7 @@
                             "max_row": 20,
                             "display_columns": [
                                 "文字列__1行_",
-                                "文字列__1行__0",
-                                "標準売価"
+                                "文字列__1行__0"
                             ],
                             "order": "asc",
                             "order_column": "$id"
@@ -265,14 +240,6 @@
                             {
                                 "master_field": "文字列__1行_",
                                 "relation_part_id": "fidAddedProductCode"
-                            },
-                            {
-                                "master_field": "標準売価",
-                                "relation_part_id": "fidAddedProductUnitPrice"
-                            },
-                            {
-                                "master_field": "ラジオボタン_0",
-                                "relation_part_id": "fidAddedProductUnit"
                             }
                         ],
                         "default": ""
@@ -322,11 +289,9 @@
                     "fidChangedProductUnitPrice",
                     "fidCurrentProductQuantity",
                     "fidChangedProductQuantity",
-                    "fidChangedProductUnit",
                     "fidAddedProductCode",
                     "fidAddedProductUnitPrice",
                     "fidAddedProductQuantity",
-                    "fidAddedProductUnit",
                     "fidAddedProductPrice",
                     "fidChangedProductPrice",
                     "fidAddedProductName"
@@ -344,7 +309,7 @@
             "formula": "SUM(fidAddedProductPrice)+SUM(fidChangedProductPrice)",
             "type": "calculate",
             "comment": "",
-            "add_comma": false,
+            "add_comma": true,
             "name": "ご注文小計"
         },
         "fidTestEnvUrlFirstChoice": {
@@ -400,7 +365,7 @@
             "formula": "fidOrderSubtotal+fidOrderTax",
             "type": "calculate",
             "comment": "",
-            "add_comma": false,
+            "add_comma": true,
             "name": "ご注文合計金額"
         },
         "fidChangeApplyMonth": {
