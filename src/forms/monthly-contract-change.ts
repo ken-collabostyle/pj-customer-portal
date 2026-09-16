@@ -11,6 +11,7 @@ import {
   extractUniqueInstances,
   filterActiveMonthlyRecords,
   filterRecordsByInstance,
+  findUserCountMismatches,
   isApplyMonthSelectionAllowed,
   toContractRecord,
   type ContractRecord,
@@ -44,9 +45,18 @@ const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
 const CANCEL_CHECKED_VALUE = "解約";
 
+// オプション等新規追加欄（ステップe）のパーツID。
+const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
+const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
+
 // kintoneから取得した「現在有効な月額契約」レコードのローカルキャッシュ。
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
 let activeMonthlyRecordsCache: ContractRecord[] = [];
+
+// 明細テーブルの行インデックス→区分（クラウド契約管理DBの`区分`）の対応キャッシュ（ステップe用）。
+// 明細テーブルの行自体には区分を保持する専用パーツがないため、applyLineItemsToTableで
+// テーブルへの反映と同時に更新する。
+let currentLineItemCategories: string[] = [];
 
 // ステップaのインスタンス選択プルダウン（DOM構造に依存する非公式実装）の構築に失敗した場合に立てるフラグ。
 // b以降のステップで別の申請ブロック条件を追加する場合は、混在させず別名のフラグにすること。
@@ -95,6 +105,9 @@ let cancelQuantityLockFailed = false;
 const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
   "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+const OPTION_USER_COUNT_MISMATCH_MESSAGE =
+  "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
+
 const CHANGE_APPLY_MONTH_TOO_EARLY_MESSAGE =
   "選択された変更適用希望年月では申請できません。当月分は申込期限（当月最終営業日から3営業日前）を過ぎているため、翌月以降を選択してください。";
 
@@ -138,6 +151,8 @@ function applyLineItemsToTable(
     lineItemsExceedTableCapacity = false;
   }
 
+  currentLineItemCategories = [];
+
   tableRows.forEach((row, index) => {
     const lineItem = lineItems[index];
     row[LINE_ITEM_COLUMN_PART_IDS.productName].value = lineItem ? lineItem.productName : "";
@@ -146,7 +161,38 @@ function applyLineItemsToTable(
     row[LINE_ITEM_COLUMN_PART_IDS.currentQuantity].value = lineItem ? lineItem.currentQuantity : "";
     // 「変更後契約数」の初期値は現商品契約数と同じにする（要求事項：変更後契約数のデフォルトは現在の契約ユーザー数）。
     row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value = lineItem ? lineItem.currentQuantity : "";
+    // ステップe（オプションのユーザー数整合性チェック）用に区分を保持する。
+    currentLineItemCategories[index] = lineItem ? lineItem.category : "";
   });
+}
+
+/**
+ * オプション（ユーザーライセンス形式）のユーザー数が、ベースライセンスのユーザー数と
+ * 一致しているかを検証する（ステップeの実装）。既存契約行は`currentLineItemCategories`
+ * （applyLineItemsToTableで更新済み）と解約チェックの状態から、新規追加行はフォーム上に
+ * 既にセットされている`fidAddedProductCategory`の値から、それぞれ判定材料を集める。
+ */
+function validateOptionUserCounts(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+
+  const existingRows = tableRows.map((row, index) => ({
+    category: currentLineItemCategories[index] ?? "",
+    changedQuantity: row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value,
+    isCancelled: row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE,
+  }));
+
+  const addedRows = tableRows.map((row) => ({
+    category: row[ADDED_PRODUCT_CATEGORY_PART_ID].value,
+    quantity: row[ADDED_PRODUCT_QUANTITY_PART_ID].value,
+  }));
+
+  const mismatches = findUserCountMismatches(existingRows, addedRows);
+  if (mismatches.length === 0) {
+    return true;
+  }
+
+  alert(OPTION_USER_COUNT_MISMATCH_MESSAGE);
+  return false;
 }
 
 /**
@@ -420,8 +466,16 @@ collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) 
 });
 
 collaboform.events.on("form.confirm", function (data) {
-  return blockSubmissionIfDataIssueDetected() && validateChangeApplyMonth(data);
+  return (
+    blockSubmissionIfDataIssueDetected() &&
+    validateChangeApplyMonth(data) &&
+    validateOptionUserCounts(data)
+  );
 });
 collaboform.events.on("form.submit", function (data) {
-  return blockSubmissionIfDataIssueDetected() && validateChangeApplyMonth(data);
+  return (
+    blockSubmissionIfDataIssueDetected() &&
+    validateChangeApplyMonth(data) &&
+    validateOptionUserCounts(data)
+  );
 });

@@ -8,13 +8,16 @@ import {
   filterActiveMonthlyRecords,
   filterRecordsByInstance,
   findBaseRecord,
+  findUserCountMismatches,
   getBusinessDaysOfMonth,
   getCutoffBusinessDay,
   isActiveMonthlyRecord,
   isApplyMonthSelectionAllowed,
   isBusinessDay,
   toContractRecord,
+  type AddedLineItemForValidation,
   type ContractRecord,
+  type ExistingLineItemForValidation,
   type RawKintoneRecord,
 } from "../../src/forms/monthly-contract-change-logic";
 
@@ -165,15 +168,119 @@ describe("buildLineItems", () => {
         productCode: "CODE-A",
         unitPrice: "500",
         quantity: "3",
+        category: "オプション",
       }),
     ];
     expect(buildLineItems(records)).toEqual([
-      { productName: "商品A", productCode: "CODE-A", unitPrice: "500", currentQuantity: "3" },
+      {
+        productName: "商品A",
+        productCode: "CODE-A",
+        unitPrice: "500",
+        currentQuantity: "3",
+        category: "オプション",
+      },
     ]);
   });
 
   it("レコードが0件なら空配列を返す", () => {
     expect(buildLineItems([])).toEqual([]);
+  });
+});
+
+// 全般バリデーション：オプションのユーザー数整合性（フェーズ1ステップe）
+
+function makeExistingRow(
+  overrides: Partial<ExistingLineItemForValidation> = {}
+): ExistingLineItemForValidation {
+  return { category: "ベース", changedQuantity: "10", isCancelled: false, ...overrides };
+}
+
+function makeAddedRow(overrides: Partial<AddedLineItemForValidation> = {}): AddedLineItemForValidation {
+  return { category: "", quantity: "", ...overrides };
+}
+
+describe("findUserCountMismatches", () => {
+  it("ベースとオプションの数量が一致する場合は不一致なし", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: "オプション", changedQuantity: "10" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("既存オプション行の数量がベースと異なる場合は不一致として検出する", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: "オプション", changedQuantity: "5" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([
+      { source: "existing", rowIndex: 2, category: "オプション", quantity: "5" },
+    ]);
+  });
+
+  it("対象『区分』（オプション系すべて）はいずれも不一致検出の対象になる", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: "オプション（ライセンスキー不要）", changedQuantity: "5" }),
+      makeExistingRow({ category: "オプション（転記不要）", changedQuantity: "5" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toHaveLength(2);
+  });
+
+  it("『フォーム』『フォームOP』区分は対象外", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: "フォーム", changedQuantity: "1" }),
+      makeExistingRow({ category: "フォームOP", changedQuantity: "1" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("解約チェックONの既存オプション行は不一致判定の対象外", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: "オプション", changedQuantity: "0", isCancelled: true }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("ベース行が解約済みの場合はチェック自体をスキップする", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "0", isCancelled: true }),
+      makeExistingRow({ category: "オプション", changedQuantity: "5" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("ベース行が存在しない場合はチェック自体をスキップする", () => {
+    const existingRows = [makeExistingRow({ category: "オプション", changedQuantity: "5" })];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("新規追加行の数量がベースと異なる場合は不一致として検出する", () => {
+    const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
+    const addedRows = [makeAddedRow({ category: "オプション", quantity: "3" })];
+    expect(findUserCountMismatches(existingRows, addedRows)).toEqual([
+      { source: "added", rowIndex: 1, category: "オプション", quantity: "3" },
+    ]);
+  });
+
+  it("新規追加行の数量がベースと一致する場合は不一致なし", () => {
+    const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
+    const addedRows = [makeAddedRow({ category: "オプション", quantity: "10" })];
+    expect(findUserCountMismatches(existingRows, addedRows)).toEqual([]);
+  });
+
+  it("区分が空（未使用行）の新規追加行は対象外", () => {
+    const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
+    const addedRows = [makeAddedRow({ category: "", quantity: "" })];
+    expect(findUserCountMismatches(existingRows, addedRows)).toEqual([]);
+  });
+
+  it("区分が『ベース』の新規追加行は想定外入力として対象外", () => {
+    const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
+    const addedRows = [makeAddedRow({ category: "ベース", quantity: "999" })];
+    expect(findUserCountMismatches(existingRows, addedRows)).toEqual([]);
   });
 });
 

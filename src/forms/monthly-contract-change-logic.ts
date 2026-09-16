@@ -127,6 +127,7 @@ export interface ContractLineItem {
   productCode: string;
   unitPrice: string;
   currentQuantity: string;
+  category: string;
 }
 
 /**
@@ -135,6 +136,7 @@ export interface ContractLineItem {
  * クラウド契約管理DBに「商品名」専用フィールドが存在しないため代替）。
  * 単価は月額契約のみを対象としているため`unitPrice`固定でよい
  * （年額契約は`isActiveMonthlyRecord`で除外済み）。
+ * `category`（区分）はフェーズ1ステップeのオプションユーザー数整合性チェックで使用する。
  */
 export function buildLineItems(records: ContractRecord[]): ContractLineItem[] {
   return records.map((record) => ({
@@ -142,7 +144,108 @@ export function buildLineItems(records: ContractRecord[]): ContractLineItem[] {
     productCode: record.productCode,
     unitPrice: record.unitPrice,
     currentQuantity: record.quantity,
+    category: record.category,
   }));
+}
+
+// ===== 全般バリデーション：オプションのユーザー数整合性（フェーズ1ステップe） =====
+// 要求事項：「オプションがユーザーライセンス形式の場合、オプションのライセンス数が、
+// ベースライセンスと同じユーザー数になっているかをチェックする。」
+// 対象「区分」・解約行の扱い等は2026-09-11/16にユーザー確認済み
+// （docs/plans/2026-09-11_フェーズ1ステップe_オプションユーザー数整合性チェック.md参照）。
+
+/** ユーザーライセンス形式とみなす「区分」の値（2026-09-11ユーザー確認済み：オプション系すべて）。 */
+export const OPTION_CATEGORIES = [
+  "オプション",
+  "オプション（ライセンスキー不要）",
+  "オプション（転記不要）",
+] as const;
+
+function isOptionCategory(category: string): boolean {
+  return (OPTION_CATEGORIES as readonly string[]).includes(category);
+}
+
+/** 数量の比較。kintone/コラボフォームの数値パーツは文字列で値が渡されるため数値として比較する。 */
+function quantitiesMatch(a: string, b: string): boolean {
+  const numA = Number(a);
+  const numB = Number(b);
+  if (Number.isNaN(numA) || Number.isNaN(numB)) {
+    return a === b;
+  }
+  return numA === numB;
+}
+
+/** 既存契約行（明細テーブル「1. 変更後契約数」列側）のうち、本チェックに必要な最小限のデータ。 */
+export interface ExistingLineItemForValidation {
+  category: string;
+  changedQuantity: string;
+  isCancelled: boolean;
+}
+
+/** 新規追加行（明細テーブル「2. オプション等新規追加」列側）のうち、本チェックに必要な最小限のデータ。 */
+export interface AddedLineItemForValidation {
+  category: string;
+  quantity: string;
+}
+
+export interface UserCountMismatch {
+  source: "existing" | "added";
+  /** 1始まりの行番号（既存行・新規追加行それぞれの配列内でのインデックス）。 */
+  rowIndex: number;
+  category: string;
+  quantity: string;
+}
+
+/**
+ * オプション（ユーザーライセンス形式）の数量が、ベースライセンスの数量と一致しない行を検出する。
+ * ベース行が存在しない、またはベース行が解約済みの場合は比較基準がないためチェックをスキップする
+ * （2026-09-16ユーザー確認済み）。解約済みの既存行はチェック対象外（意図的な0のため）。
+ * 新規追加行に「区分」が空（未入力行）または「ベース」が入っている場合はチェック対象外とする
+ * （新規追加でベースを扱うことは想定しないため、想定外入力として無視する）。
+ */
+export function findUserCountMismatches(
+  existingRows: ExistingLineItemForValidation[],
+  addedRows: AddedLineItemForValidation[]
+): UserCountMismatch[] {
+  const baseRow = existingRows.find(
+    (row) => row.category === BASE_CATEGORY && !row.isCancelled
+  );
+  if (!baseRow) {
+    return [];
+  }
+  const baseQuantity = baseRow.changedQuantity;
+
+  const mismatches: UserCountMismatch[] = [];
+
+  existingRows.forEach((row, index) => {
+    if (row.isCancelled || !isOptionCategory(row.category)) {
+      return;
+    }
+    if (!quantitiesMatch(row.changedQuantity, baseQuantity)) {
+      mismatches.push({
+        source: "existing",
+        rowIndex: index + 1,
+        category: row.category,
+        quantity: row.changedQuantity,
+      });
+    }
+  });
+
+  addedRows.forEach((row, index) => {
+    if (!isOptionCategory(row.category)) {
+      return;
+    }
+    if (!quantitiesMatch(row.quantity, baseQuantity)) {
+      mismatches.push({
+        source: "added",
+        rowIndex: index + 1,
+        category: row.category,
+        quantity: row.quantity,
+      });
+    }
+  });
+
+  return mismatches;
 }
 
 // ===== 変更適用希望年月：デフォルト値・選択可能範囲（フェーズ1ステップf） =====
