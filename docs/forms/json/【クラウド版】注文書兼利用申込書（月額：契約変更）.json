@@ -1,5 +1,5 @@
 {
-    "total_count": 30,
+    "total_count": 31,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 9,
@@ -240,9 +240,25 @@
                             {
                                 "master_field": "文字列__1行_",
                                 "relation_part_id": "fidAddedProductCode"
+                            },
+                            {
+                                "master_field": "文字列__1行__5",
+                                "relation_part_id": "fidAddedProductCategory"
                             }
                         ],
                         "default": ""
+                    },
+                    "fidAddedProductCategory": {
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
+                        "hint": "",
+                        "required": false,
+                        "type": "text",
+                        "comment": "",
+                        "max_length": 20,
+                        "default": "",
+                        "name": "追加商品区分"
                     },
                     "fidChangedProductQuantity": {
                         "display": true,
@@ -294,7 +310,8 @@
                     "fidAddedProductQuantity",
                     "fidAddedProductPrice",
                     "fidChangedProductPrice",
-                    "fidAddedProductName"
+                    "fidAddedProductName",
+                    "fidAddedProductCategory"
                 ],
                 "display_row_number": false,
                 "name": "table"
