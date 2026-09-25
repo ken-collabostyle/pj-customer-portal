@@ -9,7 +9,9 @@
 
 実際の認証情報は[.env.example](../../.env.example)のキーに対応する値をローカルの`.env`（gitignore対象、リポジトリには含まれない）に設定して管理します。kintoneのAPIトークンは**アプリごと**に権限が分かれるため、アプリごとに個別のキーを用意しています（`KINTONE_BASE_URL`はkintone環境共通、`KINTONE_CONTRACT_DB_APP_ID` / `KINTONE_CONTRACT_DB_API_TOKEN`がクラウド契約管理DB用、`KINTONE_LICENSE_TYPE_MASTER_APP_ID` / `KINTONE_LICENSE_TYPE_MASTER_API_TOKEN`がライセンス種類マスタ用）。このフォルダやチャット・コミットメッセージに実値を書き込まないでください。
 
-**2026-09-11変更**：定価取得元が商品マスタからライセンス種類マスタに変更されたため、`KINTONE_PRODUCT_MASTER_APP_ID` / `KINTONE_PRODUCT_MASTER_API_TOKEN`は不使用（[商品マスタ.md](商品マスタ.md)参照）。
+**2026-09-11変更**：定価取得元が商品マスタからライセンス種類マスタに変更されたため、月額版では`KINTONE_PRODUCT_MASTER_APP_ID` / `KINTONE_PRODUCT_MASTER_API_TOKEN`は不使用（[商品マスタ.md](商品マスタ.md)参照）。
+
+**2026-09-25追記**：年額版フォーム（フェーズ4）の「nヶ月分」商品判定に必要な「按分月数」フィールドがライセンス種類マスタには存在せず商品マスタにのみ存在するため、`KINTONE_PRODUCT_MASTER_APP_ID` / `KINTONE_PRODUCT_MASTER_API_TOKEN`を`.env.example`に復活。用途は定価取得ではなく按分月数判定（詳細は[商品マスタ.md](商品マスタ.md)参照）。
 
 ## kintone APIトークンの主な用途
 
@@ -24,10 +26,10 @@
 | ファイル | 内容 | 状態 |
 |---|---|---|
 | [クラウド契約管理DB.md](クラウド契約管理DB.md) | 「顧客番号」をキーに、インスタンス名・法人／団体名・現在契約プラン・現在契約ユーザー数・商品コード等を取得するためのアプリID・フィールドコード対応表 | 済（2026-09-02、生JSON突合により誤りを修正） |
-| [商品マスタ.md](商品マスタ.md) | 新規追加オプションの定価を取得するためのアプリID・フィールドコード対応表 | **不使用（2026-09-11、ライセンス種類マスタに置き換え）** |
+| [商品マスタ.md](商品マスタ.md) | 月額版：新規追加オプションの定価を取得するためのアプリID・フィールドコード対応表（不使用）／年額版：「按分月数」判定用に再利用 | 月額版では不使用（2026-09-11、ライセンス種類マスタに置き換え）、**年額版では2026-09-25より使用（按分月数判定用）** |
 | [ライセンス種類マスタ.md](ライセンス種類マスタ.md) | 新規追加オプションの定価（`月額単価`）・ユーザーライセンス形式（`区分`）を取得するためのアプリID・フィールドコード対応表 | 一部確認中（クラウド契約管理DBとの突合キー未確定） |
 | [json/クラウド契約管理DB_getFormFields.json](json/クラウド契約管理DB_getFormFields.json) | クラウド契約管理DBの`getFormFields` API生レスポンス（フィールド定義のみ。値そのものは含まない）。上記マークダウンの一次情報 | 済（2026-09-02取得） |
-| [json/商品マスタ_getFormFields.json](json/商品マスタ_getFormFields.json) | 商品マスタの`getFormFields` API生レスポンス（フィールド定義のみ。値そのものは含まない） | 参考（不使用） |
+| [json/商品マスタ_getFormFields.json](json/商品マスタ_getFormFields.json) | 商品マスタの`getFormFields` API生レスポンス（フィールド定義のみ。値そのものは含まない） | 年額版の按分月数フィールド確認の一次情報として再利用 |
 | [json/ライセンス種類マスタ_getFormFields.json](json/ライセンス種類マスタ_getFormFields.json) | ライセンス種類マスタの`getFormFields` API生レスポンス（フィールド定義のみ。値そのものは含まない）。[ライセンス種類マスタ.md](ライセンス種類マスタ.md)の一次情報 | 済 |
 
 当初「契約管理アプリ」「商品マスターアプリ」の2アプリを想定していましたが、2026-08-25時点でアプリ「クラウド契約管理DB」の「顧客番号」キー検索により契約情報が一括取得できることが判明。定価情報のみ別アプリ「商品マスタ」が必要なことが分かり、結果的に当初想定どおり2アプリ構成となりました。
@@ -74,6 +76,20 @@ kintoneの2アプリへアクセスするため、コラボフォームの管理
 | リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_LICENSE_TYPE_MASTER_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
 | ステータス | **未作成**：旧`kintone-product-master`エンドポイントは商品マスタ用のため本プロジェクトでは不使用。ライセンス種類マスタ用に上記設定で新規作成が必要（ユーザーが検証環境で対応） |
 
+### エンドポイント3：`kintone-product-master`（商品マスタ用、年額版フォーム専用、2026-09-25追加）
+
+商品マスタも顧客に依存しないマスタデータのため、`app`のみ固定すればよい（エンドポイント2と同様の構成）。月額版では使用しない（年額版フォームの「按分月数」判定専用）。
+
+| 項目 | 設定値 |
+|---|---|
+| エンドポイントコード | `kintone-product-master` |
+| HTTPメソッド | GET |
+| 接続先ホスト | `https://devaqvqwv.cybozu.com` |
+| パス | `/k/v1/records.json` |
+| クエリパラメーター | `app=<.envのKINTONE_PRODUCT_MASTER_APP_IDの値>`（管理画面側で固定） |
+| リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_PRODUCT_MASTER_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
+| ステータス | **未作成**：年額版フェーズ4の実装着手時に、ユーザーが検証環境で作成予定 |
+
 ### JavaScript側の呼び出しイメージ（フェーズ1で実装）
 
 ```javascript
@@ -87,5 +103,6 @@ collaboform.proxy.call('kintone-contract-db').then(function (response) {
 
 - `kintone-contract-db`エンドポイントの作成はユーザー自身（コラボフォーム管理者権限を保有）が検証環境で行い、2026-08-25に完了。
 - `kintone-contract-db`の`query`固定値（テスト用顧客番号）は未設定。ユーザーから顧客番号の連絡を受け次第、管理画面側で設定する。
-- **2026-09-11変更**：商品マスタ用の`kintone-product-master`エンドポイントは本プロジェクトでは不使用。代わりに`kintone-license-type-master`エンドポイントの新規作成が必要（未作成、`.env`のアプリID・APIトークン設定も含めユーザー対応待ち）。
+- **2026-09-11変更**：商品マスタ用の旧`kintone-product-master`エンドポイントは月額版では不使用。代わりに`kintone-license-type-master`エンドポイントの新規作成が必要（未作成、`.env`のアプリID・APIトークン設定も含めユーザー対応待ち）。
+- **2026-09-25追記**：年額版フォームの「按分月数」判定用に`kintone-product-master`エンドポイントを改めて新規作成する必要がある（エンドポイント3参照、未作成）。
 - 動作確認はユーザーが手動で行う方針（[docs/plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md](../plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md)参照）。
