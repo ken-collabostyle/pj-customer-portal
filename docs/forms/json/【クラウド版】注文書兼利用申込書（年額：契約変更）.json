@@ -1,5 +1,5 @@
 {
-    "total_count": 35,
+    "total_count": 34,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 15,
@@ -165,18 +165,6 @@
                         "default": false,
                         "name": "商品解約"
                     },
-                    "fid20": {
-                        "display": true,
-                        "decimal_place": 0,
-                        "hint": "",
-                        "required": false,
-                        "input_regulation": {},
-                        "type": "number_v2",
-                        "comment": "",
-                        "default": "",
-                        "add_comma": false,
-                        "name": "追加後商品数量"
-                    },
                     "fidAddedProductPrice": {
                         "calc_type": "number",
                         "decimal_place": 0,
@@ -212,17 +200,16 @@
                         "add_comma": true,
                         "name": "変更後商品単価"
                     },
-                    "fid15": {
-                        "display": true,
+                    "fidChangedProductQuantityDiff": {
+                        "calc_type": "number",
                         "decimal_place": 0,
                         "hint": "",
                         "required": false,
-                        "input_regulation": {},
-                        "type": "number_v2",
+                        "formula": "fidChangedProductQuantity-fidCurrentProductQuantity",
+                        "type": "calculate",
                         "comment": "",
-                        "default": "",
                         "add_comma": false,
-                        "name": "変更後商品数量"
+                        "name": "変更後差分契約数"
                     },
                     "fidChangedProductPrice": {
                         "calc_type": "money",
@@ -328,16 +315,15 @@
                     "fidChangedProductUnitPrice",
                     "fidCurrentProductQuantity",
                     "fidChangedProductQuantity",
-                    "fid15",
                     "fidChangedProductPrice",
                     "fidAddedProductCode",
                     "fidAddedProductUnitPrice",
                     "fidAddedProductQuantity",
-                    "fid20",
                     "fidAddedProductPrice",
                     "fidAddedProductCategory",
                     "fidChangedProductName",
-                    "fidAddedProductName"
+                    "fidAddedProductName",
+                    "fidChangedProductQuantityDiff"
                 ],
                 "display_row_number": false,
                 "name": "table"
