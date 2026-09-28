@@ -3,7 +3,7 @@
 // esbuildでバンドルしIIFE形式1ファイルに出力する。
 import { build } from "esbuild";
 
-const forms = ["monthly-contract-change"];
+const forms = ["monthly-contract-change", "annual-contract-change"];
 
 await Promise.all(
   forms.map((form) =>
