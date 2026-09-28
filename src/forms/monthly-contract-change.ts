@@ -7,16 +7,18 @@
 import {
   buildCurrentContractSummary,
   buildLineItems,
-  computeEarliestAllowedApplyMonth,
   extractUniqueInstances,
   filterActiveMonthlyRecords,
   filterRecordsByInstance,
-  findUserCountMismatches,
-  isApplyMonthSelectionAllowed,
   toContractRecord,
   type ContractRecord,
   type RawKintoneRecord,
 } from "./monthly-contract-change-logic";
+import {
+  computeEarliestAllowedApplyMonth,
+  findUserCountMismatches,
+  isApplyMonthSelectionAllowed,
+} from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db";
