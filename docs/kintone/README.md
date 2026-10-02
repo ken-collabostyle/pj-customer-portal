@@ -50,7 +50,9 @@ kintoneの2アプリへアクセスするため、コラボフォームの管理
 
 このため、機能が実装されるまでの**暫定対応**として、`kintone-contract-db`エンドポイントの`query`パラメーターに固定のテスト用顧客番号を管理画面側で設定する（JS側は顧客番号を一切渡さない）。将来、拡張フィールド差し込み機能が実装された時点で、この固定値を差し替える想定。テスト用顧客番号は未確定（ユーザーから追って連絡）。
 
-### エンドポイント1：`kintone-contract-db`（クラウド契約管理DB用）
+### エンドポイント1：`kintone-contract-db`（クラウド契約管理DB用、月額版フォーム専用）
+
+**2026-10-02判明**：クラウド契約管理DBは月額・年額共通のkintoneアプリ（アプリID: 73）だが、コラボフォームのプロキシAPI設定はフォーム単位のため、**月額版フォームと年額版フォームで別名のエンドポイントがそれぞれ必要**と実機確認で判明した。月額版は`kintone-contract-db`、年額版は`kintone-contract-db-annual`（エンドポイント1-b参照）。
 
 | 項目 | 設定値 |
 |---|---|
@@ -61,6 +63,20 @@ kintoneの2アプリへアクセスするため、コラボフォームの管理
 | クエリパラメーター | `app=73`、`query=顧客番号="<テスト用顧客番号・未確定>"`（両方とも管理画面側で固定。**暫定対応、詳細は上記参照**） |
 | リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_CONTRACT_DB_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
 | ステータス | 有効 |
+
+### エンドポイント1-b：`kintone-contract-db-annual`（クラウド契約管理DB用、年額版フォーム専用、2026-10-02追加）
+
+接続先・クエリ条件はエンドポイント1と同一（同じkintoneアプリ・同じ検索条件）。年額版フォーム（[annual-contract-change.ts](../../src/forms/annual-contract-change.ts)）からの呼び出し専用として、コラボフォーム側の制約によりエンドポイント名のみ分ける。
+
+| 項目 | 設定値 |
+|---|---|
+| エンドポイントコード | `kintone-contract-db-annual` |
+| HTTPメソッド | GET |
+| 接続先ホスト | `https://devaqvqwv.cybozu.com` |
+| パス | `/k/v1/records.json` |
+| クエリパラメーター | `app=73`、`query=顧客番号="<テスト用顧客番号・未確定>"`（エンドポイント1と同一） |
+| リクエストヘッダー | `X-Cybozu-API-Token` = `.env`の`KINTONE_CONTRACT_DB_API_TOKEN`と同じ値を**直接入力**（Claudeには渡さない） |
+| ステータス | ユーザーが検証環境で作成済み（2026-10-02、実機確認の過程で必要と判明） |
 
 ### エンドポイント2：`kintone-license-type-master`（ライセンス種類マスタ用、2026-09-11に`kintone-product-master`から変更）
 
@@ -105,4 +121,5 @@ collaboform.proxy.call('kintone-contract-db').then(function (response) {
 - `kintone-contract-db`の`query`固定値（テスト用顧客番号）は未設定。ユーザーから顧客番号の連絡を受け次第、管理画面側で設定する。
 - **2026-09-11変更**：商品マスタ用の旧`kintone-product-master`エンドポイントは月額版では不使用。代わりに`kintone-license-type-master`エンドポイントの新規作成が必要（未作成、`.env`のアプリID・APIトークン設定も含めユーザー対応待ち）。
 - **2026-09-25追記**：年額版フォームの「按分月数」判定用に`kintone-product-master`エンドポイントを改めて新規作成する必要がある（エンドポイント3参照、未作成）。
+- **2026-10-02追記**：年額版フォーム（ステップa）の検証環境での実機確認の過程で、コラボフォームのプロキシAPI設定がフォーム単位であるため、月額版と同じ`kintone-contract-db`を年額版から呼び出せないことが判明。年額版専用に`kintone-contract-db-annual`エンドポイントを新設し、`annual-contract-change.ts`側の呼び出し先を変更した（エンドポイント1-b参照）。
 - 動作確認はユーザーが手動で行う方針（[docs/plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md](../plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md)参照）。

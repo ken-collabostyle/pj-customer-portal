@@ -114,3 +114,9 @@ DOM操作関連の関数（`lockInstanceNameField`, `buildInstanceSelector`, ロ
 コード実装が完了。`src/forms/annual-contract-change-logic.ts`・`src/forms/annual-contract-change.ts`・`tests/forms/annual-contract-change-logic.test.ts`を新規作成し、`scripts/build.mjs`の`forms`配列に`annual-contract-change`を追加。`npm run lint` / `npm run typecheck` / `npm test`（58件、月額42件＋年額16件）/ `npm run build`（`dist/forms/annual-contract-change.js`生成）をすべて確認済み。詳細は[実施記録](../agent-records/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携_実装.md)参照。
 
 **次のアクション**：ユーザーが検証環境（年額版フォーム）に`dist/forms/annual-contract-change.js`をアップロードし、上記「確認方法」の各項目を実機確認。結果共有後、本計画をcompletedに更新する。
+
+## 実機確認対応（2026-10-02）
+
+ユーザーが検証環境にアップロードし確認した結果、コラボフォームのプロキシAPI設定がフォーム単位であるため、月額版と同じ`kintone-contract-db`エンドポイントを年額版から呼び出せないことが判明。年額版専用エンドポイント`kintone-contract-db-annual`をユーザーが検証環境で新規作成し、`annual-contract-change.ts`の`KINTONE_CONTRACT_DB_ENDPOINT`を変更した（[docs/kintone/README.md](../kintone/README.md)エンドポイント1-b参照）。`npm run lint` / `npm run typecheck` / `npm test` / `npm run build`再確認済み。
+
+その他の確認項目（法人名・現在契約プラン・現在契約ユーザー数・契約期限の表示、複数インスタンス切り替え、明細テーブル表示、フェイルセーフ動作）の結果は別途共有待ち。
