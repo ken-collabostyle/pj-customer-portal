@@ -1,7 +1,7 @@
 ---
 type: plan
 date: 2026-09-28
-status: in-progress
+status: completed
 tags: [顧客ポータル, 年額契約変更, kintone連携, フェーズ4]
 related:
   - docs/plans/2026-09-25_フェーズ4_年額契約変更カスタマイズ計画.md
@@ -124,3 +124,9 @@ DOM操作関連の関数（`lockInstanceNameField`, `buildInstanceSelector`, ロ
 ## テスト環境ライセンス専用インスタンスの不具合修正（2026-10-02）
 
 実機確認で、同一顧客番号に2インスタンスがあり片方がテスト環境ライセンス専用（区分=ベースの行が存在しない）の場合に`baseRecordMissing`が誤検知される不具合が発見された。月額版にも同一ロジックがあるため、`contract-change-shared-logic.ts`に`findBaseOrTestEnvLicenseRecord`を追加し、月額・年額両方の`findBaseRecord`から共通利用する形で修正した。`npm run lint` / `npm run typecheck` / `npm test`（70件）/ `npm run build`で確認済み。詳細は[実施記録](../agent-records/2026-10-02_テスト環境ライセンス専用インスタンスのベース判定修正.md)参照。
+
+## 完了（2026-10-02）
+
+残っていた5項目（法人名・現在契約プラン・現在契約ユーザー数・契約期限の表示、契約期限の表示形式、複数インスタンス切り替え、明細テーブル表示、フェイルセーフ動作）をユーザーが検証環境で実機確認し、すべて正常動作を確認した。
+
+ステップaはこれでクローズ。次はステップb（変更後契約数のデフォルト値／解約チェック連動、フル年額商品のみ対象）に着手する（[フェーズ4計画](2026-09-25_フェーズ4_年額契約変更カスタマイズ計画.md)参照）。

@@ -1,11 +1,13 @@
 ---
 type: task-record
 date: 2026-09-28
-status: open
+status: resolved
 tags: [顧客ポータル, 年額契約変更, kintone連携, フェーズ4]
 related:
   - docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
   - docs/agent-records/2026-09-02_フェーズ1ステップa_インスタンス名UIとkintone連携_実装.md
+  - docs/agent-records/2026-10-02_フェーズ4ステップa_年額版プロキシ名対応.md
+  - docs/agent-records/2026-10-02_テスト環境ライセンス専用インスタンスのベース判定修正.md
 resolves: []
 ---
 
@@ -39,5 +41,4 @@ resolves: []
 
 ## 未解決課題・申し送り事項
 
-- ユーザーによる検証環境での実機確認が未実施。契約期限（`fidCurrentContractExpiry`、date型パーツ）へのkintone DATE型値（`YYYY-MM-DD`想定）のセットが問題なく表示されるか、複数インスタンス切り替え・明細表示・フェイルセーフ動作とあわせて確認が必要
-- 実機確認完了後、[計画ファイル](../plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md)のstatusをcompletedに更新し、本記録のstatusもresolvedにする
+なし。2026-10-02に実機確認完了（プロキシ名修正・テスト環境ライセンス不具合修正を経て、契約期限表示・複数インスタンス切り替え・明細表示・フェイルセーフ動作を含む全項目でユーザーが正常動作を確認）。ステップaクローズ、次はステップb（変更後契約数のデフォルト値／解約チェック連動）に着手する。
