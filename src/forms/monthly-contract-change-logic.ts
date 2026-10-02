@@ -4,7 +4,7 @@
 // 月額・年額で共通の汎用ロジック（営業日計算・オプションユーザー数整合性チェック）は
 // contract-change-shared-logic.ts参照（docs/plans/2026-09-28_フェーズ4_共通モジュール抽出.md）。
 
-import { BASE_CATEGORY } from "./contract-change-shared-logic";
+import { findBaseOrTestEnvLicenseRecord } from "./contract-change-shared-logic";
 
 export interface KintoneFieldValue {
   value: string;
@@ -29,6 +29,8 @@ export const CONTRACT_DB_FIELD_CODES = {
   productCode: "製品型番",
   unitPrice: "単価_月額_税抜",
   invoiceServiceName: "サービス名_請求書用",
+  // テスト環境ライセンス専用インスタンスの判定用（2026-10-02追加）。
+  searchId: "検索ID",
 } as const;
 
 /** プログラム内部で使う、kintoneのフィールドコード変更に影響されない安定したドメインモデル。 */
@@ -43,6 +45,7 @@ export interface ContractRecord {
   productCode: string;
   unitPrice: string;
   invoiceServiceName: string;
+  searchId: string;
 }
 
 /** kintoneの生レコードを、フィールドコード対応表経由で内部ドメインモデルへ変換する。 */
@@ -59,6 +62,7 @@ export function toContractRecord(raw: RawKintoneRecord): ContractRecord {
     productCode: getValue(CONTRACT_DB_FIELD_CODES.productCode),
     unitPrice: getValue(CONTRACT_DB_FIELD_CODES.unitPrice),
     invoiceServiceName: getValue(CONTRACT_DB_FIELD_CODES.invoiceServiceName),
+    searchId: getValue(CONTRACT_DB_FIELD_CODES.searchId),
   };
 }
 
@@ -101,8 +105,13 @@ export function filterRecordsByInstance(
   return records.filter((record) => record.instanceName === instanceName);
 }
 
+/**
+ * 区分=ベースのレコードを探す。見つからない場合、テスト環境ライセンス専用インスタンス
+ * （契約品目がテスト環境ライセンスの1行のみで区分=ベースの行が存在しないケース）向けに、
+ * `検索ID`がテスト環境ライセンスを示すレコードを代わりに返す（2026-10-02ユーザー確認）。
+ */
 export function findBaseRecord(records: ContractRecord[]): ContractRecord | undefined {
-  return records.find((record) => record.category === BASE_CATEGORY);
+  return findBaseOrTestEnvLicenseRecord(records);
 }
 
 export interface CurrentContractSummary {

@@ -5,6 +5,39 @@
 /** 「ベース」区分を表す定数。既存契約行のベース行判定（`findBaseRecord`等）とオプション整合性チェックの両方から参照する。 */
 export const BASE_CATEGORY = "ベース";
 
+// ===== テスト環境ライセンス専用インスタンスの「ベース」代替判定 =====
+// 2026-10-02ユーザー確認：コラボフローの「テスト環境ライセンス」は正規契約とは別契約のインスタンスで、
+// 正規契約のオプションを全て使える仕様のため、契約品目が「テスト環境ライセンス」の1行のみ（区分=ベースの
+// 行が存在しない）というインスタンスが実在する。この場合、区分=ベースのレコードがなくてもインスタンスの
+// 選択・申請を許可すべきで、テスト環境ライセンスの行自体を「ベース」の代わりとして扱う。月額・年額で同一の
+// 業務ルールのため共通化する。
+
+/**
+ * テスト環境ライセンスの行を識別する`検索ID`の値。
+ * 実データの表記揺れ（空白の数等）は実機確認で要確認。
+ */
+export const TEST_ENV_LICENSE_SEARCH_ID = "テスト環境ライセンス  クラウド版";
+
+/** `findBaseOrTestEnvLicenseRecord`が扱う最小限のレコード形状。 */
+export interface RecordWithCategoryAndSearchId {
+  category: string;
+  searchId: string;
+}
+
+/**
+ * 「ベース」区分のレコードを優先して探し、見つからない場合は`検索ID`がテスト環境ライセンスを
+ * 示すレコードを代わりに返す（コラボフローアプリでは、テスト環境ライセンス専用インスタンスには
+ * 区分=ベースの行が存在しないため）。いずれも見つからない場合は`undefined`を返す。
+ */
+export function findBaseOrTestEnvLicenseRecord<T extends RecordWithCategoryAndSearchId>(
+  records: T[]
+): T | undefined {
+  return (
+    records.find((record) => record.category === BASE_CATEGORY) ??
+    records.find((record) => record.searchId === TEST_ENV_LICENSE_SEARCH_ID)
+  );
+}
+
 // ===== 全般バリデーション：オプションのユーザー数整合性 =====
 // 要求事項：「オプションがユーザーライセンス形式の場合、オプションのライセンス数が、
 // ベースライセンスと同じユーザー数になっているかをチェックする。」
