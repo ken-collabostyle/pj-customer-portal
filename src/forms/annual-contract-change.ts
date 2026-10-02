@@ -2,6 +2,7 @@
 // フェーズ4の各ステップ（a, b, c, d）はこのファイルに順次イベントハンドラーを追加していく
 // （月額版のmonthly-contract-change.tsと同じ運用パターン）。
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
+//       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
@@ -34,6 +35,11 @@ const LINE_ITEM_COLUMN_PART_IDS = {
   currentQuantity: "fidCurrentProductQuantity",
   changedQuantity: "fidChangedProductQuantity",
 } as const;
+
+const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
+// チェックボックスのチェック時表示コメント（パーツ構造JSON参照、月額版と完全一致）。
+// parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
+const CANCEL_CHECKED_VALUE = "解約";
 
 // kintoneから取得した「現在有効な年額契約」レコードのローカルキャッシュ。
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
@@ -83,6 +89,13 @@ let kintoneCallFailed = false;
 
 const KINTONE_CALL_FAILED_MESSAGE =
   "契約情報の取得に失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+// 解約チェック連動で「変更後契約数」入力欄をロックする際のDOM操作に失敗した場合
+// （DOM構造不一致。ステップbの実装で追加）に立てるフラグ。
+let cancelQuantityLockFailed = false;
+
+const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
+  "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
@@ -216,6 +229,32 @@ function buildInstanceSelector(instances: string[], data: CollaboformEventData):
   wrapper.appendChild(select);
 }
 
+/**
+ * 明細行の「変更後契約数」入力欄を解約チェック連動でロック/アンロックする
+ * （DOM構造に直接依存する非公式実装。ステップbの実装で追加、月額版と同じパターン）。
+ * 公式API（parts.enabled）はパーツの有効/無効を設定できない仕様のため、lockInstanceNameFieldと
+ * 同じパターンでDOM操作により対応する。失敗時は cancelQuantityLockFailed を立て、
+ * form.confirm / form.submit で申請自体をブロックする。
+ */
+function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void {
+  const nativeInput = document.getElementById(
+    `table:${rowIndex}:${LINE_ITEM_COLUMN_PART_IDS.changedQuantity}`
+  );
+
+  if (!(nativeInput instanceof HTMLInputElement)) {
+    cancelQuantityLockFailed = true;
+    console.error(
+      `[annual-contract-change] ${rowIndex}行目の「変更後契約数」入力欄のロックに失敗しました。` +
+        "DOM構造が想定と異なります（コラボフォームのUIライブラリのバージョンアップ等が原因の可能性）。" +
+        ` nativeInput=${String(nativeInput)}`
+    );
+    alert(CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE);
+    return;
+  }
+
+  nativeInput.readOnly = locked;
+}
+
 const LOADING_OVERLAY_ID = "annual-contract-change-loading-overlay";
 
 /**
@@ -273,6 +312,10 @@ function blockSubmissionIfDataIssueDetected(): boolean {
     alert(KINTONE_CALL_FAILED_MESSAGE);
     return false;
   }
+  if (cancelQuantityLockFailed) {
+    alert(CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE);
+    return false;
+  }
   return true;
 }
 
@@ -321,6 +364,29 @@ collaboform.events.on("form.show", function (data) {
     .finally(function () {
       hideLoadingOverlay();
     });
+});
+
+// ===== ステップb: 変更後契約数のデフォルト値／解約チェック連動 =====
+// 「解約」チェックON時は変更後契約数を0固定・入力不可に、OFF時は現商品契約数を再セットして入力可能に戻す。
+// 現時点では商品マスタ連携（フェーズ2a）が未解消で「nヶ月分」商品の判定ができないため、
+// すべての明細行に適用する（「nヶ月分」商品の除外はフェーズ2で追加。
+// docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md参照）。
+collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) {
+  if (data.row_index === undefined) {
+    return;
+  }
+
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const row = tableRows[data.row_index - 1];
+  if (!row) {
+    return;
+  }
+
+  const isCancelled = row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE;
+  row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value = isCancelled
+    ? "0"
+    : row[LINE_ITEM_COLUMN_PART_IDS.currentQuantity].value;
+  setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
 collaboform.events.on("form.confirm", function () {
