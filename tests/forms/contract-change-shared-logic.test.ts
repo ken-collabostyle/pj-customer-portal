@@ -1,14 +1,51 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEarliestAllowedApplyMonth,
+  findBaseOrTestEnvLicenseRecord,
   findUserCountMismatches,
   getBusinessDaysOfMonth,
   getCutoffBusinessDay,
   isApplyMonthSelectionAllowed,
   isBusinessDay,
+  TEST_ENV_LICENSE_SEARCH_ID,
   type AddedLineItemForValidation,
   type ExistingLineItemForValidation,
+  type RecordWithCategoryAndSearchId,
 } from "../../src/forms/contract-change-shared-logic";
+
+// テスト環境ライセンス専用インスタンスの「ベース」代替判定（2026-10-02追加）
+
+function makeCategorySearchIdRecord(
+  overrides: Partial<RecordWithCategoryAndSearchId> = {}
+): RecordWithCategoryAndSearchId {
+  return { category: "オプション", searchId: "", ...overrides };
+}
+
+describe("findBaseOrTestEnvLicenseRecord", () => {
+  it("区分がベースのレコードを優先して返す", () => {
+    const records = [
+      makeCategorySearchIdRecord({ category: "オプション" }),
+      makeCategorySearchIdRecord({ category: "ベース" }),
+    ];
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[1]);
+  });
+
+  it("ベースレコードがなければ検索IDがテスト環境ライセンスのレコードを返す", () => {
+    const records = [
+      makeCategorySearchIdRecord({ category: "フォーム", searchId: TEST_ENV_LICENSE_SEARCH_ID }),
+    ];
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[0]);
+  });
+
+  it("ベース・テスト環境ライセンスのいずれもなければundefinedを返す", () => {
+    const records = [makeCategorySearchIdRecord({ category: "オプション", searchId: "その他" })];
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBeUndefined();
+  });
+
+  it("レコードが0件ならundefinedを返す", () => {
+    expect(findBaseOrTestEnvLicenseRecord([])).toBeUndefined();
+  });
+});
 
 // 全般バリデーション：オプションのユーザー数整合性（フェーズ1ステップe）
 
