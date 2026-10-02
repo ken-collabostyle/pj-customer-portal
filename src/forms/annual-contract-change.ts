@@ -41,6 +41,10 @@ const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
 const CANCEL_CHECKED_VALUE = "解約";
 
+// 「変更後差分契約数」（年額のみ新規、type: calculate、formula: fidChangedProductQuantity-fidCurrentProductQuantity）。
+// 月額版には存在しないパーツ。
+const CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID = "fidChangedProductQuantityDiff";
+
 // kintoneから取得した「現在有効な年額契約」レコードのローカルキャッシュ。
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
 let activeAnnualRecordsCache: ContractRecord[] = [];
@@ -49,6 +53,14 @@ let activeAnnualRecordsCache: ContractRecord[] = [];
 // 明細テーブルの行自体には区分を保持する専用パーツがないため、applyLineItemsToTableで
 // テーブルへの反映と同時に更新する。
 let currentLineItemCategories: string[] = [];
+
+// 明細テーブルの行インデックス→解約チェック状態の対応キャッシュ（ステップb用）。
+// 「変更後差分契約数」（CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID）はfidChangedProductQuantityに
+// 依存するcalculate型パーツのため、解約チェック連動でfidChangedProductQuantity.valueをセットすると
+// プロダクト側の自動計算が走り、その際の行の再描画でJSが直接セットしたreadOnlyが解除されてしまう
+// （2026-10-02実機確認で判明）。そのため、差分パーツの変更イベントで改めてロックし直す際、
+// どちらの状態にロックすべきかをこのキャッシュから判定する。
+let cancelledRowState: boolean[] = [];
 
 // ステップaのインスタンス選択プルダウン（DOM構造に依存する非公式実装）の構築に失敗した場合に立てるフラグ。
 // b以降のステップで別の申請ブロック条件を追加する場合は、混在させず別名のフラグにすること。
@@ -139,6 +151,8 @@ function applyLineItemsToTable(
   }
 
   currentLineItemCategories = [];
+  // インスタンス切り替え時、新しい明細は常に未解約（「継続」）として表示されるためリセットする。
+  cancelledRowState = [];
 
   tableRows.forEach((row, index) => {
     const lineItem = lineItems[index];
@@ -150,6 +164,7 @@ function applyLineItemsToTable(
     row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value = lineItem ? lineItem.currentQuantity : "";
     // ステップc（オプションのユーザー数整合性チェック）用に区分を保持する。
     currentLineItemCategories[index] = lineItem ? lineItem.category : "";
+    cancelledRowState[index] = false;
   });
 }
 
@@ -383,9 +398,25 @@ collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) 
   }
 
   const isCancelled = row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE;
+  cancelledRowState[data.row_index - 1] = isCancelled;
   row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value = isCancelled
     ? "0"
     : row[LINE_ITEM_COLUMN_PART_IDS.currentQuantity].value;
+  setChangedQuantityFieldLocked(data.row_index, isCancelled);
+});
+
+// 「変更後差分契約数」はfidChangedProductQuantityに依存するcalculate型パーツのため、上記の
+// fidChangedProductQuantity.value変更（解約チェック連動）のたびにプロダクト側で自動再計算される。
+// この再計算に伴う行の再描画で、直前にセットしたreadOnlyが解除されてしまう事象が実機確認で判明した
+// （docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md「案A」参照）。
+// そのため、この自動再計算が完了した後（＝本イベント発火時点）に、キャッシュしておいた解約状態で
+// 改めてロックし直す。
+collaboform.events.on(`form.${CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID}.change`, function (data) {
+  if (data.row_index === undefined) {
+    return;
+  }
+
+  const isCancelled = cancelledRowState[data.row_index - 1] ?? false;
   setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
