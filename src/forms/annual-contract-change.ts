@@ -16,7 +16,7 @@ import {
   type RawKintoneRecord,
 } from "./annual-contract-change-logic";
 
-const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db";
+const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db-annual";
 
 const INSTANCE_NAME_PART_ID = "fidContractedInstanceName";
 const CORPORATE_NAME_PART_ID = "fidCorporateName";
