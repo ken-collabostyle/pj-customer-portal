@@ -120,3 +120,7 @@ DOM操作関連の関数（`lockInstanceNameField`, `buildInstanceSelector`, ロ
 ユーザーが検証環境にアップロードし確認した結果、コラボフォームのプロキシAPI設定がフォーム単位であるため、月額版と同じ`kintone-contract-db`エンドポイントを年額版から呼び出せないことが判明。年額版専用エンドポイント`kintone-contract-db-annual`をユーザーが検証環境で新規作成し、`annual-contract-change.ts`の`KINTONE_CONTRACT_DB_ENDPOINT`を変更した（[docs/kintone/README.md](../kintone/README.md)エンドポイント1-b参照）。`npm run lint` / `npm run typecheck` / `npm test` / `npm run build`再確認済み。
 
 その他の確認項目（法人名・現在契約プラン・現在契約ユーザー数・契約期限の表示、複数インスタンス切り替え、明細テーブル表示、フェイルセーフ動作）の結果は別途共有待ち。
+
+## テスト環境ライセンス専用インスタンスの不具合修正（2026-10-02）
+
+実機確認で、同一顧客番号に2インスタンスがあり片方がテスト環境ライセンス専用（区分=ベースの行が存在しない）の場合に`baseRecordMissing`が誤検知される不具合が発見された。月額版にも同一ロジックがあるため、`contract-change-shared-logic.ts`に`findBaseOrTestEnvLicenseRecord`を追加し、月額・年額両方の`findBaseRecord`から共通利用する形で修正した。`npm run lint` / `npm run typecheck` / `npm test`（70件）/ `npm run build`で確認済み。詳細は[実施記録](../agent-records/2026-10-02_テスト環境ライセンス専用インスタンスのベース判定修正.md)参照。
