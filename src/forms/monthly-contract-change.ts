@@ -46,6 +46,8 @@ const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // チェックボックスのチェック時表示コメント（docs/forms/json/【クラウド版】注文書兼利用申込書（月額：契約変更）.json:159参照）。
 // parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
 const CANCEL_CHECKED_VALUE = "解約";
+// ロック中の「変更後契約数」入力欄の背景色（readOnlyだけでは見た目が変わらないため明示する）。
+const LOCKED_FIELD_BACKGROUND_COLOR = "rgb(241, 243, 245)";
 
 // オプション等新規追加欄（ステップe）のパーツID。
 const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
@@ -246,6 +248,7 @@ function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void 
   }
 
   nativeInput.readOnly = locked;
+  nativeInput.style.backgroundColor = locked ? LOCKED_FIELD_BACKGROUND_COLOR : "";
 }
 
 /**

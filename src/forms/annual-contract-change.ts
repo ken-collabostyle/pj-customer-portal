@@ -3,6 +3,7 @@
 // （月額版のmonthly-contract-change.tsと同じ運用パターン）。
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
 //       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
+//       docs/plans/2026-10-21_フェーズ4ステップc_年額版オプションユーザー数整合性チェック.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
@@ -16,6 +17,7 @@ import {
   type ContractRecord,
   type RawKintoneRecord,
 } from "./annual-contract-change-logic";
+import { findUserCountMismatches } from "./contract-change-shared-logic";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db-annual";
 
@@ -40,6 +42,11 @@ const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // チェックボックスのチェック時表示コメント（パーツ構造JSON参照、月額版と完全一致）。
 // parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
 const CANCEL_CHECKED_VALUE = "解約";
+// ロック中の「変更後契約数」入力欄の背景色（readOnlyだけでは見た目が変わらないため明示する）。
+const LOCKED_FIELD_BACKGROUND_COLOR = "rgb(241, 243, 245)";
+
+const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
+const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
 
 // 「変更後差分契約数」（年額のみ新規、type: calculate、formula: fidChangedProductQuantity-fidCurrentProductQuantity）。
 // 月額版には存在しないパーツ。
@@ -49,7 +56,8 @@ const CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID = "fidChangedProductQuantityDiff";
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
 let activeAnnualRecordsCache: ContractRecord[] = [];
 
-// 明細テーブルの行インデックス→区分（クラウド契約管理DBの`区分`）の対応キャッシュ（ステップc用）。
+// 明細テーブルの行インデックス→区分（クラウド契約管理DBの`区分`）の対応キャッシュ
+// （ステップcのvalidateOptionUserCountsで使用）。
 // 明細テーブルの行自体には区分を保持する専用パーツがないため、applyLineItemsToTableで
 // テーブルへの反映と同時に更新する。
 let currentLineItemCategories: string[] = [];
@@ -109,6 +117,9 @@ let cancelQuantityLockFailed = false;
 const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
   "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+const OPTION_USER_COUNT_MISMATCH_MESSAGE =
+  "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
+
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
 }
@@ -166,6 +177,35 @@ function applyLineItemsToTable(
     currentLineItemCategories[index] = lineItem ? lineItem.category : "";
     cancelledRowState[index] = false;
   });
+}
+
+/**
+ * オプション（ユーザーライセンス形式）のユーザー数が、ベースライセンスのユーザー数と
+ * 一致しているかを検証する（ステップcの実装、月額版ステップeと同じパターン）。
+ * 既存契約行は`currentLineItemCategories`（applyLineItemsToTableで更新済み）と解約チェックの状態から、
+ * 新規追加行はフォーム上に既にセットされている`fidAddedProductCategory`の値から、それぞれ判定材料を集める。
+ */
+function validateOptionUserCounts(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+
+  const existingRows = tableRows.map((row, index) => ({
+    category: currentLineItemCategories[index] ?? "",
+    changedQuantity: row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value,
+    isCancelled: row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE,
+  }));
+
+  const addedRows = tableRows.map((row) => ({
+    category: row[ADDED_PRODUCT_CATEGORY_PART_ID].value,
+    quantity: row[ADDED_PRODUCT_QUANTITY_PART_ID].value,
+  }));
+
+  const mismatches = findUserCountMismatches(existingRows, addedRows);
+  if (mismatches.length === 0) {
+    return true;
+  }
+
+  alert(OPTION_USER_COUNT_MISMATCH_MESSAGE);
+  return false;
 }
 
 /**
@@ -268,6 +308,7 @@ function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void 
   }
 
   nativeInput.readOnly = locked;
+  nativeInput.style.backgroundColor = locked ? LOCKED_FIELD_BACKGROUND_COLOR : "";
 }
 
 const LOADING_OVERLAY_ID = "annual-contract-change-loading-overlay";
@@ -420,9 +461,9 @@ collaboform.events.on(`form.${CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID}.change`, fu
   setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
-collaboform.events.on("form.confirm", function () {
-  return blockSubmissionIfDataIssueDetected();
+collaboform.events.on("form.confirm", function (data) {
+  return blockSubmissionIfDataIssueDetected() && validateOptionUserCounts(data);
 });
-collaboform.events.on("form.submit", function () {
-  return blockSubmissionIfDataIssueDetected();
+collaboform.events.on("form.submit", function (data) {
+  return blockSubmissionIfDataIssueDetected() && validateOptionUserCounts(data);
 });
