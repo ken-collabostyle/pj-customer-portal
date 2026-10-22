@@ -4,6 +4,7 @@
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
 //       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
 //       docs/plans/2026-10-21_フェーズ4ステップc_年額版オプションユーザー数整合性チェック.md
+//       docs/plans/2026-10-22_フェーズ4ステップd_年額版変更適用希望年月デフォルト値と選択可能範囲.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
@@ -17,7 +18,12 @@ import {
   type ContractRecord,
   type RawKintoneRecord,
 } from "./annual-contract-change-logic";
-import { findUserCountMismatches } from "./contract-change-shared-logic";
+import {
+  computeEarliestAllowedApplyMonth,
+  findUserCountMismatches,
+  isApplyMonthSelectionAllowed,
+} from "./contract-change-shared-logic";
+import { JAPAN_HOLIDAYS } from "./japan-holidays";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db-annual";
 
@@ -26,6 +32,8 @@ const CORPORATE_NAME_PART_ID = "fidCorporateName";
 const CURRENT_PLAN_PART_ID = "fidCurrentContractPlan";
 const CURRENT_USER_COUNT_PART_ID = "fidCurrentContractUserCount";
 const CONTRACT_EXPIRY_PART_ID = "fidCurrentContractExpiry";
+const CHANGE_APPLY_YEAR_PART_ID = "fidChangeApplyYear";
+const CHANGE_APPLY_MONTH_PART_ID = "fidChangeApplyMonth";
 const TABLE_PART_ID = "tbl_1";
 
 type ContractLineItemRow = Record<string, CollaboformPartValue<string>>;
@@ -119,6 +127,9 @@ const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
 
 const OPTION_USER_COUNT_MISMATCH_MESSAGE =
   "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
+
+const CHANGE_APPLY_MONTH_TOO_EARLY_MESSAGE =
+  "選択された変更適用希望年月では申請できません。当月分は申込期限（当月最終営業日から3営業日前）を過ぎているため、翌月以降を選択してください。";
 
 function setPartValue(data: CollaboformEventData, partId: string, value: string): void {
   data.parts[partId].value = value;
@@ -311,7 +322,31 @@ function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void 
   nativeInput.style.backgroundColor = locked ? LOCKED_FIELD_BACKGROUND_COLOR : "";
 }
 
-const LOADING_OVERLAY_ID = "annual-contract-change-loading-overlay";
+/**
+ * 変更適用希望年月の選択値が、当日から計算した最早選択可能年月以上かを検証する
+ * （ステップdの実装、月額版ステップfと同じパターン。当月選択可能期限日の定義は
+ * contract-change-shared-logic.ts 参照）。
+ * ドロップダウンの選択肢自体は制限せず、確認・送信のタイミングでブロックする方針
+ * （fidChangeApplyMonthはMantineのSelectコンボボックスで選択肢一覧が開いた時のみ
+ * DOMにレンダリングされ、選択肢を削除するDOM操作は非常に脆弱なため）。
+ */
+function validateChangeApplyMonth(data: CollaboformEventData): boolean {
+  const selectedYear = Number(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
+  const selectedMonth = Number(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
+
+  if (Number.isNaN(selectedYear) || Number.isNaN(selectedMonth)) {
+    return true;
+  }
+
+  if (isApplyMonthSelectionAllowed(selectedYear, selectedMonth, new Date(), JAPAN_HOLIDAYS)) {
+    return true;
+  }
+
+  alert(CHANGE_APPLY_MONTH_TOO_EARLY_MESSAGE);
+  return false;
+}
+
+const LOADING_OVERLAY_ID ="annual-contract-change-loading-overlay";
 
 /**
  * 初期化処理（kintone連携等）が完了するまで、画面全体を覆うローディング表示を追加し
@@ -378,6 +413,21 @@ function blockSubmissionIfDataIssueDetected(): boolean {
 collaboform.events.on("form.show", function (data) {
   // 初期化処理（本ハンドラー全体）が完了するまでローディング表示で入力をブロックする。
   showLoadingOverlay();
+
+  // ===== ステップd: 変更適用希望年月のデフォルト値 =====
+  // kintone連携（インスタンス名・契約情報）とは独立した処理のため、プロキシ呼び出しの完了を待たず即時セットする。
+  try {
+    const earliestApplyMonth = computeEarliestAllowedApplyMonth(new Date(), JAPAN_HOLIDAYS);
+    setPartValue(data, CHANGE_APPLY_YEAR_PART_ID, String(earliestApplyMonth.year));
+    setPartValue(data, CHANGE_APPLY_MONTH_PART_ID, String(earliestApplyMonth.month));
+  } catch (error) {
+    console.error(
+      "[annual-contract-change] 変更適用希望年月のデフォルト値セットに失敗しました。",
+      error
+    );
+    hideLoadingOverlay();
+    throw error;
+  }
 
   collaboform.proxy
     .call(KINTONE_CONTRACT_DB_ENDPOINT)
@@ -462,8 +512,16 @@ collaboform.events.on(`form.${CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID}.change`, fu
 });
 
 collaboform.events.on("form.confirm", function (data) {
-  return blockSubmissionIfDataIssueDetected() && validateOptionUserCounts(data);
+  return (
+    blockSubmissionIfDataIssueDetected() &&
+    validateChangeApplyMonth(data) &&
+    validateOptionUserCounts(data)
+  );
 });
 collaboform.events.on("form.submit", function (data) {
-  return blockSubmissionIfDataIssueDetected() && validateOptionUserCounts(data);
+  return (
+    blockSubmissionIfDataIssueDetected() &&
+    validateChangeApplyMonth(data) &&
+    validateOptionUserCounts(data)
+  );
 });
