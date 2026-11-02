@@ -56,9 +56,11 @@
 | 追加商品契約数 | 同一 | `fidAddedProductQuantity` |
 | 追加商品価格 | 同一 | `fidAddedProductPrice` |
 | 追加商品区分 | 同一 | `fidAddedProductCategory` |
+| 追加商品按分月数（2c-h用、商品マスタ`按分月数`＝`数値`をlookupで自動セット） | 年額のみ新規 | `fidAddedProductProratedMonths` |
 
 ## 検討経緯
 
 * Excelテンプレート初版では、テーブル1・2の両方に単価×数量＝価格を意図した「数量」列（`変更後商品数量`／`追加後商品数量`）が存在した。**2026-09-25、業務支援チームとの調整の結果、「追加後商品数量」（旧`fid20`）は不要として削除、「変更後商品数量」（旧`fid15`）は「変更後差分契約数」として残す方針に確定**。`fidChangedProductQuantityDiff`という新規IDで、`type: calculate`（formula: `fidChangedProductQuantity-fidCurrentProductQuantity`、変更後契約数－現契約数）に変更済み。パーツ名（`name`）も「変更後差分契約数」に更新済み（2026-09-25、詳細は[実装メモ](【クラウド版】注文書兼利用申込書（年額：契約変更）_実装メモ.md)参照）。なお本パーツは月額版フォームにも後日追加予定（ToDo）。
+* **2026-11-02、`fidAddedProductProratedMonths`（パーツ名「追加商品按分月数」、型`number_v2`、小数なし）をコラボフロー側に追加済み。lookupでの値セットも、ユーザーが実機で確認済み**（更新後の[パーツ構造JSON](../json/【クラウド版】注文書兼利用申込書（年額：契約変更）.json)・Excelで反映を確認。`display: true`で、明細テーブルの列に追加されている）。新規追加商品の「nヶ月分」判定（フェーズ2c-h）に使う。`fidAddedProductName`のlookup（`data_placements`）に`master_field: "数値"`→`relation_part_id: "fidAddedProductProratedMonths"`を追加する想定で、`fidAddedProductCategory`と同じ方式。採用すれば`kintone-product-master`プロキシは不要。型は商品マスタ`数値`（NUMBER）に合わせて`number_v2`（`fidAddedProductCategory`の`text`とは異なる）。NUMBER型を`number_v2`へlookupで入れられることは実機確認済み。**未確認**：`parts.value`の型（文字列か数値か）は、JS実装時に確認する（JS側は文字列・数値どちらでも扱えるよう`Number(value)`で変換する想定）。`display: true`（`fidAddedProductCategory`の非表示とは異なり、顧客にも見える列として追加されている）のままでよいかは、2c-hの計画で確認する。
 * 「契約期限」は年額版のみの新規項目で、日付型として保持する。
 * 上記2点以外は月額版と同一の意味を持つため、既存パーツIDをそのまま踏襲した。
