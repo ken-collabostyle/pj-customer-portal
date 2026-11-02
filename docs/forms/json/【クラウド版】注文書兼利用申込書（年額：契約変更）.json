@@ -1,5 +1,5 @@
 {
-    "total_count": 34,
+    "total_count": 35,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 15,
@@ -223,7 +223,7 @@
                         "name": "変更後商品価格"
                     },
                     "fidAddedProductCategory": {
-                        "display": false,
+                        "display": true,
                         "input_format": "",
                         "display_format": "",
                         "hint": "",
@@ -265,6 +265,10 @@
                                 "relation_part_id": "fidAddedProductCode"
                             },
                             {
+                                "master_field": "数値",
+                                "relation_part_id": "fidAddedProductProratedMonths"
+                            },
+                            {
                                 "master_field": "文字列__1行__5",
                                 "relation_part_id": "fidAddedProductCategory"
                             }
@@ -295,6 +299,18 @@
                         "add_comma": true,
                         "name": "追加商品単価"
                     },
+                    "fidAddedProductProratedMonths": {
+                        "display": true,
+                        "decimal_place": 0,
+                        "hint": "",
+                        "required": false,
+                        "input_regulation": {},
+                        "type": "number_v2",
+                        "comment": "",
+                        "default": "",
+                        "add_comma": false,
+                        "name": "追加商品按分月数"
+                    },
                     "fidCurrentProductQuantity": {
                         "display": true,
                         "decimal_place": 0,
@@ -323,7 +339,8 @@
                     "fidAddedProductCategory",
                     "fidChangedProductName",
                     "fidAddedProductName",
-                    "fidChangedProductQuantityDiff"
+                    "fidChangedProductQuantityDiff",
+                    "fidAddedProductProratedMonths"
                 ],
                 "display_row_number": false,
                 "name": "table"
