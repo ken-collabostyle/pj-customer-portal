@@ -1,19 +1,22 @@
 // 【クラウド版】注文書兼利用申込書（年額：契約変更）フォーム専用カスタマイズ。
-// フェーズ4の各ステップ（a, b, c, d）はこのファイルに順次イベントハンドラーを追加していく
+// フェーズ4の各ステップ（a, b, c, d, 2c-g）はこのファイルに順次イベントハンドラーを追加していく
 // （月額版のmonthly-contract-change.tsと同じ運用パターン）。
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
 //       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
 //       docs/plans/2026-10-21_フェーズ4ステップc_年額版オプションユーザー数整合性チェック.md
 //       docs/plans/2026-10-22_フェーズ4ステップd_年額版変更適用希望年月デフォルト値と選択可能範囲.md
+//       docs/plans/2026-10-26_フェーズ4ステップ2c-g_変更適用月差分の自動計算.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
 import {
   buildCurrentContractSummary,
   buildLineItems,
+  computeChangeApplyMonthDiff,
   extractUniqueInstances,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
+  parseContractExpiryMonth,
   toContractRecord,
   type ContractRecord,
   type RawKintoneRecord,
@@ -34,6 +37,7 @@ const CURRENT_USER_COUNT_PART_ID = "fidCurrentContractUserCount";
 const CONTRACT_EXPIRY_PART_ID = "fidCurrentContractExpiry";
 const CHANGE_APPLY_YEAR_PART_ID = "fidChangeApplyYear";
 const CHANGE_APPLY_MONTH_PART_ID = "fidChangeApplyMonth";
+const CHANGE_APPLY_MONTH_DIFF_PART_ID = "fidChangeApplyMonthDiff";
 const TABLE_PART_ID = "tbl_1";
 
 type ContractLineItemRow = Record<string, CollaboformPartValue<string>>;
@@ -50,7 +54,7 @@ const CANCEL_CHECKBOX_PART_ID = "fidProductCancel";
 // チェックボックスのチェック時表示コメント（パーツ構造JSON参照、月額版と完全一致）。
 // parts.valueは選択状態に応じてこの文字列（または未チェック時の"継続"）が返る仕様。
 const CANCEL_CHECKED_VALUE = "解約";
-// ロック中の「変更後契約数」入力欄の背景色（readOnlyだけでは見た目が変わらないため明示する）。
+// ロック中の入力欄（「変更後契約数」「変更適用月差分」）の背景色（readOnlyだけでは見た目が変わらないため明示する）。
 const LOCKED_FIELD_BACKGROUND_COLOR = "rgb(241, 243, 245)";
 
 const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
@@ -125,6 +129,33 @@ let cancelQuantityLockFailed = false;
 const CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE =
   "解約チェックに連動した入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
+// ステップ2c-g：変更適用月差分の自動計算に使う現在選択中インスタンスの契約期限（`YYYY-MM-DD`）。
+// fidCurrentContractExpiryのパーツ値は日付表示形式（yyyy/m/d）に依存し形式が保証できないため、
+// applyInstanceDataでセットする際の値をここに保持して計算に使う。
+let currentContractExpiry = "";
+
+// 選択中インスタンスのベース行は取得できたが、契約期限（契約終了日）が空・不正の場合に立てるフラグ
+// （例：テスト環境ライセンス専用インスタンス。変更適用月差分を算出できないため申請不可とする、
+// 2026-10-26ユーザー確認済み）。インスタンス切り替えで契約期限が取得できる状態に戻ればfalseにリセットする。
+let contractExpiryMissing = false;
+
+const CONTRACT_EXPIRY_MISSING_MESSAGE =
+  "選択されたインスタンスの現在契約期限が取得できませんでした。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+// applyInstanceDataによる初回の算出が済んだらtrueにする。form.showでのデフォルト年月セットに伴って
+// 先にchangeイベントが発火しても、契約期限が未取得・DOM未確定の段階では算出・ロックを行わないためのガード
+// （ロック失敗の誤判定を防ぐ）。
+let changeApplyMonthDiffReady = false;
+
+// 変更適用月差分入力欄のreadOnly化（DOM操作）に失敗した場合に立てるフラグ。
+let changeApplyMonthDiffLockFailed = false;
+
+const CHANGE_APPLY_MONTH_DIFF_LOCK_FAILURE_MESSAGE =
+  "変更適用月差分の入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
+
+const CHANGE_APPLY_MONTH_DIFF_NOT_POSITIVE_MESSAGE =
+  "変更適用月差分が0以下になるため申請できません。変更適用希望年月が現在契約期限の月より前になるよう選択してください。";
+
 const OPTION_USER_COUNT_MISMATCH_MESSAGE =
   "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
 
@@ -145,15 +176,98 @@ function applyInstanceData(instanceName: string, data: CollaboformEventData): vo
     setPartValue(data, CURRENT_USER_COUNT_PART_ID, summary.currentUserCount);
     setPartValue(data, CONTRACT_EXPIRY_PART_ID, summary.contractExpiry);
     baseRecordMissing = false;
+
+    currentContractExpiry = summary.contractExpiry;
+    if (parseContractExpiryMonth(currentContractExpiry) === null) {
+      console.error(
+        `[annual-contract-change] インスタンス「${instanceName}」の契約期限が取得できないか不正です。契約期限=${currentContractExpiry}`
+      );
+      contractExpiryMissing = true;
+      alert(CONTRACT_EXPIRY_MISSING_MESSAGE);
+    } else {
+      contractExpiryMissing = false;
+    }
   } else {
     console.error(
       `[annual-contract-change] インスタンス「${instanceName}」に区分=ベースのレコードが見つかりませんでした。`
     );
     baseRecordMissing = true;
     alert(BASE_RECORD_MISSING_MESSAGE);
+
+    // ベース行自体がない場合はbaseRecordMissingで警告・ブロック済みのため、契約期限の警告は重ねて出さない。
+    currentContractExpiry = "";
+    contractExpiryMissing = false;
   }
 
   applyLineItemsToTable(buildLineItems(recordsForInstance), data);
+  changeApplyMonthDiffReady = true;
+  updateChangeApplyMonthDiff(data);
+}
+
+/** 空文字・空白のみの値は`Number("")===0`になり誤計算するため`NaN`として扱う。 */
+function toNumberOrNaN(value: unknown): number {
+  return String(value ?? "").trim() === "" ? Number.NaN : Number(value);
+}
+
+/**
+ * 変更適用月差分入力欄をreadOnly化する（DOM構造に直接依存する非公式実装。
+ * 公式API（parts.enabled）はパーツの有効/無効を設定できない仕様のため、lockInstanceNameFieldと
+ * 同じパターンでDOM操作により対応する）。再描画でreadOnlyが外れる可能性があるため、値のセット後と
+ * form.fidChangeApplyMonthDiff.changeで毎回呼び出す。失敗時は changeApplyMonthDiffLockFailed を立て、
+ * form.confirm / form.submit で申請自体をブロックする（毎回の呼び出しでalertが繰り返されないよう、
+ * 初回失敗時のみ警告する）。
+ */
+function lockChangeApplyMonthDiffField(): void {
+  const nativeInput = document.getElementById(CHANGE_APPLY_MONTH_DIFF_PART_ID);
+
+  if (!(nativeInput instanceof HTMLInputElement)) {
+    if (!changeApplyMonthDiffLockFailed) {
+      changeApplyMonthDiffLockFailed = true;
+      console.error(
+        "[annual-contract-change] 変更適用月差分入力欄のロックに失敗しました。" +
+          "DOM構造が想定と異なります（コラボフォームのUIライブラリのバージョンアップ等が原因の可能性）。" +
+          ` nativeInput=${String(nativeInput)}`
+      );
+      alert(CHANGE_APPLY_MONTH_DIFF_LOCK_FAILURE_MESSAGE);
+    }
+    return;
+  }
+
+  nativeInput.readOnly = true;
+  nativeInput.style.backgroundColor = LOCKED_FIELD_BACKGROUND_COLOR;
+}
+
+/**
+ * 変更適用月差分（変更適用希望月の翌月から契約期限までの残月数）を算出して
+ * fidChangeApplyMonthDiffにセットする（ステップ2c-g）。算出できない場合は空文字をセットする。
+ * 算出値が0以下の場合も補正せずそのままセットする（申請可否はvalidateChangeApplyMonthDiffで判定）。
+ */
+function updateChangeApplyMonthDiff(data: CollaboformEventData): void {
+  const diff = computeChangeApplyMonthDiff(
+    toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value),
+    toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
+    currentContractExpiry
+  );
+  setPartValue(data, CHANGE_APPLY_MONTH_DIFF_PART_ID, diff === null ? "" : String(diff));
+  lockChangeApplyMonthDiffField();
+}
+
+/**
+ * 変更適用月差分が0以下（変更適用希望月が現在契約期限の月以降）の場合は申請不可とする
+ * （2026-10-26ユーザー確認済み）。算出できない場合（年月未入力等）は、必須チェック等に委ねてスキップする。
+ */
+function validateChangeApplyMonthDiff(data: CollaboformEventData): boolean {
+  const diff = computeChangeApplyMonthDiff(
+    toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value),
+    toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
+    currentContractExpiry
+  );
+  if (diff === null || diff > 0) {
+    return true;
+  }
+
+  alert(CHANGE_APPLY_MONTH_DIFF_NOT_POSITIVE_MESSAGE);
+  return false;
 }
 
 function applyLineItemsToTable(
@@ -407,6 +521,14 @@ function blockSubmissionIfDataIssueDetected(): boolean {
     alert(CANCEL_QUANTITY_LOCK_FAILURE_MESSAGE);
     return false;
   }
+  if (contractExpiryMissing) {
+    alert(CONTRACT_EXPIRY_MISSING_MESSAGE);
+    return false;
+  }
+  if (changeApplyMonthDiffLockFailed) {
+    alert(CHANGE_APPLY_MONTH_DIFF_LOCK_FAILURE_MESSAGE);
+    return false;
+  }
   return true;
 }
 
@@ -511,10 +633,32 @@ collaboform.events.on(`form.${CHANGED_PRODUCT_QUANTITY_DIFF_PART_ID}.change`, fu
   setChangedQuantityFieldLocked(data.row_index, isCancelled);
 });
 
+// ===== ステップ2c-g: 変更適用月差分の自動計算 =====
+// 変更適用希望年・月の変更に追従して再計算する（インスタンス切り替え・初期表示時の計算は
+// applyInstanceDataで行う。docs/plans/2026-10-26_フェーズ4ステップ2c-g_変更適用月差分の自動計算.md参照）。
+collaboform.events.on(`form.${CHANGE_APPLY_YEAR_PART_ID}.change`, function (data) {
+  if (changeApplyMonthDiffReady) {
+    updateChangeApplyMonthDiff(data);
+  }
+});
+collaboform.events.on(`form.${CHANGE_APPLY_MONTH_PART_ID}.change`, function (data) {
+  if (changeApplyMonthDiffReady) {
+    updateChangeApplyMonthDiff(data);
+  }
+});
+// 値のセットに伴う再描画でreadOnlyが外れる事象への備え（ステップbの案Aと同じ考え方。
+// ロックは値を変更しないため、再帰的にchangeイベントが発火することはない）。
+collaboform.events.on(`form.${CHANGE_APPLY_MONTH_DIFF_PART_ID}.change`, function () {
+  if (changeApplyMonthDiffReady) {
+    lockChangeApplyMonthDiffField();
+  }
+});
+
 collaboform.events.on("form.confirm", function (data) {
   return (
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
+    validateChangeApplyMonthDiff(data) &&
     validateOptionUserCounts(data)
   );
 });
@@ -522,6 +666,7 @@ collaboform.events.on("form.submit", function (data) {
   return (
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
+    validateChangeApplyMonthDiff(data) &&
     validateOptionUserCounts(data)
   );
 });

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildCurrentContractSummary,
   buildLineItems,
+  computeChangeApplyMonthDiff,
   CONTRACT_DB_FIELD_CODES,
   extractUniqueInstances,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
   findBaseRecord,
   isActiveAnnualRecord,
+  parseContractExpiryMonth,
   toContractRecord,
   type ContractRecord,
   type RawKintoneRecord,
@@ -236,5 +238,58 @@ describe("buildLineItems", () => {
 
   it("レコードが0件なら空配列を返す", () => {
     expect(buildLineItems([])).toEqual([]);
+  });
+});
+
+describe("parseContractExpiryMonth", () => {
+  it("YYYY-MM-DD形式から年・月を取り出す", () => {
+    expect(parseContractExpiryMonth("2027-03-31")).toEqual({ year: 2027, month: 3 });
+  });
+
+  it("空・形式不正・月が範囲外ならnullを返す", () => {
+    expect(parseContractExpiryMonth("")).toBeNull();
+    expect(parseContractExpiryMonth("2027/03/31")).toBeNull();
+    expect(parseContractExpiryMonth("2027-00-31")).toBeNull();
+    expect(parseContractExpiryMonth("2027-13-31")).toBeNull();
+  });
+});
+
+describe("computeChangeApplyMonthDiff", () => {
+  it("適用希望月の翌月から契約期限までの残月数を返す（2026年10月・契約期限2027-03-31 → 5）", () => {
+    expect(computeChangeApplyMonthDiff(2026, 10, "2027-03-31")).toBe(5);
+  });
+
+  it("年をまたぐ場合も正しく計算する（2026年12月・契約期限2027-03-31 → 3）", () => {
+    expect(computeChangeApplyMonthDiff(2026, 12, "2027-03-31")).toBe(3);
+  });
+
+  it("同じ年内の場合（2026年10月・契約期限2026-12-31 → 2）", () => {
+    expect(computeChangeApplyMonthDiff(2026, 10, "2026-12-31")).toBe(2);
+  });
+
+  it("適用希望月が契約期限の月と同じなら0を返す", () => {
+    expect(computeChangeApplyMonthDiff(2027, 3, "2027-03-31")).toBe(0);
+  });
+
+  it("適用希望月が契約期限の月より後なら負の値をそのまま返す", () => {
+    expect(computeChangeApplyMonthDiff(2027, 4, "2027-03-31")).toBe(-1);
+  });
+
+  it("12ヶ月の場合（2026年10月・契約期限2027-10-31 → 12）", () => {
+    expect(computeChangeApplyMonthDiff(2026, 10, "2027-10-31")).toBe(12);
+  });
+
+  it("契約期限が空・形式不正ならnullを返す", () => {
+    expect(computeChangeApplyMonthDiff(2026, 10, "")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, 10, "2027/03/31")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, 10, "2027-13-31")).toBeNull();
+  });
+
+  it("適用希望年月が不正（NaN・非整数・月が範囲外）ならnullを返す", () => {
+    expect(computeChangeApplyMonthDiff(Number.NaN, 10, "2027-03-31")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, Number.NaN, "2027-03-31")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, 10.5, "2027-03-31")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, 0, "2027-03-31")).toBeNull();
+    expect(computeChangeApplyMonthDiff(2026, 13, "2027-03-31")).toBeNull();
   });
 });

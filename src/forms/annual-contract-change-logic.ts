@@ -170,3 +170,51 @@ export function buildLineItems(records: ContractRecord[]): ContractLineItem[] {
     category: record.category,
   }));
 }
+
+/**
+ * 契約期限（kintoneの`契約終了日`、`YYYY-MM-DD`形式）から年・月を取り出す。
+ * 形式不正・空・月が1〜12の範囲外なら`null`を返す。
+ */
+export function parseContractExpiryMonth(
+  contractExpiry: string
+): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(contractExpiry);
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) {
+    return null;
+  }
+  return { year, month };
+}
+
+/**
+ * 変更適用月差分（`fidChangeApplyMonthDiff`）を算出する。
+ * 変更適用希望月の翌月から契約期限までの残月数
+ * （＝`（契約期限の年×12＋月）－（変更適用希望年×12＋月）`、2026-10-26業務支援チームMTGで確定）。
+ * 契約期限は運用上必ず月末のため、日は使わず年月のみで計算する。
+ * 例：適用希望2026年10月・契約期限2027-03-31 → 課金対象は11〜3月の5ヶ月＝5。
+ * 契約期限が`YYYY-MM-DD`形式でない、または適用希望年月が不正（非整数・月が1〜12の範囲外）なら
+ * `null`を返す。0以下の値も補正せずそのまま返す（申請可否は呼び出し側で判定する）。
+ */
+export function computeChangeApplyMonthDiff(
+  applyYear: number,
+  applyMonth: number,
+  contractExpiry: string
+): number | null {
+  if (!Number.isInteger(applyYear) || !Number.isInteger(applyMonth)) {
+    return null;
+  }
+  if (applyMonth < 1 || applyMonth > 12) {
+    return null;
+  }
+
+  const expiry = parseContractExpiryMonth(contractExpiry);
+  if (!expiry) {
+    return null;
+  }
+
+  return expiry.year * 12 + expiry.month - (applyYear * 12 + applyMonth);
+}
