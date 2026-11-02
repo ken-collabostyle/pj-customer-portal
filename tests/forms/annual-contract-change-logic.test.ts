@@ -5,6 +5,7 @@ import {
   computeChangeApplyMonthDiff,
   CONTRACT_DB_FIELD_CODES,
   extractUniqueInstances,
+  findProratedMonthsMismatches,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
   findBaseRecord,
@@ -291,5 +292,91 @@ describe("computeChangeApplyMonthDiff", () => {
     expect(computeChangeApplyMonthDiff(2026, 10.5, "2027-03-31")).toBeNull();
     expect(computeChangeApplyMonthDiff(2026, 0, "2027-03-31")).toBeNull();
     expect(computeChangeApplyMonthDiff(2026, 13, "2027-03-31")).toBeNull();
+  });
+});
+
+describe("findProratedMonthsMismatches", () => {
+  function row(proratedMonths: unknown, overrides: { productCode?: string; productName?: string } = {}) {
+    return {
+      productCode: overrides.productCode ?? "CODE-1",
+      productName: overrides.productName ?? "商品A",
+      proratedMonths,
+    };
+  }
+
+  describe("期中（差分1〜11）", () => {
+    it("按分月数が差分と一致するnヶ月分商品は不一致なし", () => {
+      expect(findProratedMonthsMismatches([row(5)], 5)).toEqual([]);
+    });
+
+    it("按分月数が差分と異なるnヶ月分商品は monthsMismatch", () => {
+      expect(findProratedMonthsMismatches([row(3)], 5)).toEqual([
+        { rowIndex: 1, productName: "商品A", proratedMonths: 3, kind: "monthsMismatch" },
+      ]);
+    });
+
+    it("フル年額商品（12）は fullYearOnMidTerm", () => {
+      expect(findProratedMonthsMismatches([row(12)], 5)).toEqual([
+        { rowIndex: 1, productName: "商品A", proratedMonths: 12, kind: "fullYearOnMidTerm" },
+      ]);
+    });
+
+    it("差分11・1でも同様に判定する", () => {
+      expect(findProratedMonthsMismatches([row(11)], 11)).toEqual([]);
+      expect(findProratedMonthsMismatches([row(1)], 1)).toEqual([]);
+      expect(findProratedMonthsMismatches([row(12)], 11)).toHaveLength(1);
+    });
+  });
+
+  describe("更新タイミング（差分0）", () => {
+    it("フル年額商品（12）は不一致なし", () => {
+      expect(findProratedMonthsMismatches([row(12)], 0)).toEqual([]);
+    });
+
+    it("nヶ月分商品は partialOnRenewal", () => {
+      expect(findProratedMonthsMismatches([row(5)], 0)).toEqual([
+        { rowIndex: 1, productName: "商品A", proratedMonths: 5, kind: "partialOnRenewal" },
+      ]);
+    });
+  });
+
+  describe("差分12以上（運用上起こりえないため防御的に差分0と同じ扱い）", () => {
+    it("フル年額商品は不一致なし、nヶ月分商品は不一致", () => {
+      expect(findProratedMonthsMismatches([row(12)], 12)).toEqual([]);
+      expect(findProratedMonthsMismatches([row(12)], 13)).toEqual([]);
+      expect(findProratedMonthsMismatches([row(5)], 12)).toHaveLength(1);
+    });
+  });
+
+  it("差分が負の場合は検証しない", () => {
+    expect(findProratedMonthsMismatches([row(5), row(12)], -1)).toEqual([]);
+  });
+
+  it("按分月数が空・空白・数値でない・負数・小数・0・範囲外の行はチェック対象外", () => {
+    const rows = [row(""), row("  "), row("abc"), row(-1), row(2.5), row(0), row(13), row(null), row(undefined)];
+    expect(findProratedMonthsMismatches(rows, 5)).toEqual([]);
+  });
+
+  it("商品が選択されていない行（商品コードが空）はチェック対象外", () => {
+    expect(findProratedMonthsMismatches([row(3, { productCode: "" }), row(3, { productCode: "  " })], 5)).toEqual([]);
+  });
+
+  it("複数行が混在する場合は不一致行のみ（行番号つき）を返す", () => {
+    const rows = [
+      row(5, { productName: "一致" }),
+      row("", { productName: "按分月数なし" }),
+      row(3, { productName: "不一致" }),
+      row(12, { productName: "フル年額" }),
+    ];
+    expect(findProratedMonthsMismatches(rows, 5)).toEqual([
+      { rowIndex: 3, productName: "不一致", proratedMonths: 3, kind: "monthsMismatch" },
+      { rowIndex: 4, productName: "フル年額", proratedMonths: 12, kind: "fullYearOnMidTerm" },
+    ]);
+  });
+
+  it("値が文字列・数値のどちらで渡されても同じ結果になる", () => {
+    expect(findProratedMonthsMismatches([row("5")], 5)).toEqual([]);
+    expect(findProratedMonthsMismatches([row(5)], 5)).toEqual([]);
+    expect(findProratedMonthsMismatches([row("3")], 5)).toEqual(findProratedMonthsMismatches([row(3)], 5));
   });
 });

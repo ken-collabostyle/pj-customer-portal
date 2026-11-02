@@ -1,11 +1,12 @@
 // 【クラウド版】注文書兼利用申込書（年額：契約変更）フォーム専用カスタマイズ。
-// フェーズ4の各ステップ（a, b, c, d, 2c-g）はこのファイルに順次イベントハンドラーを追加していく
+// フェーズ4の各ステップ（a, b, c, d, 2c-g, 2c-h）はこのファイルに順次イベントハンドラーを追加していく
 // （月額版のmonthly-contract-change.tsと同じ運用パターン）。
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
 //       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
 //       docs/plans/2026-10-21_フェーズ4ステップc_年額版オプションユーザー数整合性チェック.md
 //       docs/plans/2026-10-22_フェーズ4ステップd_年額版変更適用希望年月デフォルト値と選択可能範囲.md
 //       docs/plans/2026-10-26_フェーズ4ステップ2c-g_変更適用月差分の自動計算.md
+//       docs/plans/2026-11-02_フェーズ4ステップ2c-h_新規追加時のnヶ月分商品妥当性チェック.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
@@ -16,6 +17,7 @@ import {
   extractUniqueInstances,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
+  findProratedMonthsMismatches,
   parseContractExpiryMonth,
   toContractRecord,
   type ContractRecord,
@@ -59,6 +61,10 @@ const LOCKED_FIELD_BACKGROUND_COLOR = "rgb(241, 243, 245)";
 
 const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
 const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
+const ADDED_PRODUCT_CODE_PART_ID = "fidAddedProductCode";
+const ADDED_PRODUCT_NAME_PART_ID = "fidAddedProductName";
+// 追加商品按分月数（2026-11-02追加）。`fidAddedProductName`のlookupで商品マスタの`按分月数`（`数値`）がセットされる。
+const ADDED_PRODUCT_PRORATED_MONTHS_PART_ID = "fidAddedProductProratedMonths";
 
 // 「変更後差分契約数」（年額のみ新規、type: calculate、formula: fidChangedProductQuantity-fidCurrentProductQuantity）。
 // 月額版には存在しないパーツ。
@@ -153,8 +159,8 @@ let changeApplyMonthDiffLockFailed = false;
 const CHANGE_APPLY_MONTH_DIFF_LOCK_FAILURE_MESSAGE =
   "変更適用月差分の入力欄のロックに失敗しました。お手数ですがシステム管理者にお問い合わせください（このままでは申請できません）。";
 
-const CHANGE_APPLY_MONTH_DIFF_NOT_POSITIVE_MESSAGE =
-  "変更適用月差分が0以下になるため申請できません。変更適用希望年月が現在契約期限の月より前になるよう選択してください。";
+const CHANGE_APPLY_MONTH_DIFF_NEGATIVE_MESSAGE =
+  "変更適用月差分が0未満になるため申請できません。変更適用希望年月が現在契約期限の月以前になるよう選択してください。";
 
 const OPTION_USER_COUNT_MISMATCH_MESSAGE =
   "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
@@ -240,7 +246,7 @@ function lockChangeApplyMonthDiffField(): void {
 /**
  * 変更適用月差分（変更適用希望月の翌月から契約期限までの残月数）を算出して
  * fidChangeApplyMonthDiffにセットする（ステップ2c-g）。算出できない場合は空文字をセットする。
- * 算出値が0以下の場合も補正せずそのままセットする（申請可否はvalidateChangeApplyMonthDiffで判定）。
+ * 算出値が0未満の場合も補正せずそのままセットする（申請可否はvalidateChangeApplyMonthDiffで判定）。
  */
 function updateChangeApplyMonthDiff(data: CollaboformEventData): void {
   const diff = computeChangeApplyMonthDiff(
@@ -253,8 +259,10 @@ function updateChangeApplyMonthDiff(data: CollaboformEventData): void {
 }
 
 /**
- * 変更適用月差分が0以下（変更適用希望月が現在契約期限の月以降）の場合は申請不可とする
- * （2026-10-26ユーザー確認済み）。算出できない場合（年月未入力等）は、必須チェック等に委ねてスキップする。
+ * 変更適用月差分が0未満（変更適用希望月が現在契約期限の月より後）の場合は申請不可とする。
+ * 差分0は更新タイミング（変更適用希望月＝契約期限の月）のため申請可
+ * （2026-10-26に「0以下は申請不可」としたが、2026-11-02にユーザーが更新タイミングの差分0は許可と確認し見直した）。
+ * 算出できない場合（年月未入力等）は、必須チェック等に委ねてスキップする。
  */
 function validateChangeApplyMonthDiff(data: CollaboformEventData): boolean {
   const diff = computeChangeApplyMonthDiff(
@@ -262,11 +270,63 @@ function validateChangeApplyMonthDiff(data: CollaboformEventData): boolean {
     toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
     currentContractExpiry
   );
-  if (diff === null || diff > 0) {
+  if (diff === null || diff >= 0) {
     return true;
   }
 
-  alert(CHANGE_APPLY_MONTH_DIFF_NOT_POSITIVE_MESSAGE);
+  alert(CHANGE_APPLY_MONTH_DIFF_NEGATIVE_MESSAGE);
+  return false;
+}
+
+/**
+ * 新規追加した商品の按分月数が、変更適用月差分に対して妥当かを検証する（ステップ2c-h）。
+ * 期中（差分1〜11）は按分月数＝差分のnヶ月分商品のみ、更新タイミング（差分0）はフル年額商品のみ許可し、
+ * 不正な商品があれば警告して申請をブロックする（追加時点ではなく、確認・送信時に判定する）。
+ * 変更適用月差分はパーツ値を読まず再算出する。算出できない場合はスキップする
+ * （validateChangeApplyMonthDiff・contractExpiryMissingで別途ブロックされるため）。
+ * 按分月数が空の商品（月額商品等）はチェック対象外。
+ * docs/plans/2026-11-02_フェーズ4ステップ2c-h_新規追加時のnヶ月分商品妥当性チェック.md参照。
+ */
+function validateAddedProductProratedMonths(data: CollaboformEventData): boolean {
+  const diff = computeChangeApplyMonthDiff(
+    toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value),
+    toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
+    currentContractExpiry
+  );
+  if (diff === null) {
+    return true;
+  }
+
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const addedRows = tableRows.map((row) => ({
+    productCode: row[ADDED_PRODUCT_CODE_PART_ID].value,
+    productName: row[ADDED_PRODUCT_NAME_PART_ID].value,
+    proratedMonths: row[ADDED_PRODUCT_PRORATED_MONTHS_PART_ID].value,
+  }));
+
+  const [firstMismatch] = findProratedMonthsMismatches(addedRows, diff);
+  if (!firstMismatch) {
+    return true;
+  }
+
+  const name = firstMismatch.productName;
+  switch (firstMismatch.kind) {
+    case "fullYearOnMidTerm":
+      alert(
+        `追加商品「${name}」はフル年額の商品のため、期中（変更適用月差分${diff}ヶ月）には追加できません。${diff}ヶ月分の商品を選択してください。`
+      );
+      break;
+    case "monthsMismatch":
+      alert(
+        `追加商品「${name}」は${firstMismatch.proratedMonths}ヶ月分の商品です。変更適用月差分（${diff}ヶ月）と一致するヶ月数の商品を選択してください。`
+      );
+      break;
+    case "partialOnRenewal":
+      alert(
+        `追加商品「${name}」は${firstMismatch.proratedMonths}ヶ月分の商品のため、変更適用月差分が${diff}ヶ月の場合には追加できません。フル年額の商品を選択してください。`
+      );
+      break;
+  }
   return false;
 }
 
@@ -659,6 +719,7 @@ collaboform.events.on("form.confirm", function (data) {
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
     validateChangeApplyMonthDiff(data) &&
+    validateAddedProductProratedMonths(data) &&
     validateOptionUserCounts(data)
   );
 });
@@ -667,6 +728,7 @@ collaboform.events.on("form.submit", function (data) {
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
     validateChangeApplyMonthDiff(data) &&
+    validateAddedProductProratedMonths(data) &&
     validateOptionUserCounts(data)
   );
 });

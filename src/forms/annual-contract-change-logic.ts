@@ -218,3 +218,99 @@ export function computeChangeApplyMonthDiff(
 
   return expiry.year * 12 + expiry.month - (applyYear * 12 + applyMonth);
 }
+
+/** フル年額商品の按分月数（商品マスタの`按分月数`が12のものはフルの年額、それより低い値は「nヶ月分」商品）。 */
+const FULL_YEAR_PRORATED_MONTHS = 12;
+
+/** 新規追加行（明細テーブル「2. オプション等新規追加」列側）のうち、按分月数の妥当性チェックに必要な最小限のデータ。 */
+export interface AddedLineItemForProratedMonthsValidation {
+  productCode: string;
+  productName: string;
+  /** `fidAddedProductProratedMonths`の値。文字列・数値のどちらで渡されても扱えるようにする。 */
+  proratedMonths: unknown;
+}
+
+export type ProratedMonthsMismatchKind =
+  /** 期中（差分1〜11）に、フル年額商品が追加された。 */
+  | "fullYearOnMidTerm"
+  /** 期中に、按分月数が変更適用月差分と一致しないnヶ月分商品が追加された。 */
+  | "monthsMismatch"
+  /** 更新タイミング（差分0）等で、フル年額以外のnヶ月分商品が追加された。 */
+  | "partialOnRenewal";
+
+export interface ProratedMonthsMismatch {
+  /** 1始まりの行番号（新規追加行の配列内でのインデックス）。 */
+  rowIndex: number;
+  productName: string;
+  proratedMonths: number;
+  kind: ProratedMonthsMismatchKind;
+}
+
+/**
+ * 按分月数を数値化する。空・空白のみ・数値でない・整数でない・1〜12の範囲外は`null`
+ * （判定材料にならないため、チェック対象外とする）。
+ */
+function parseProratedMonths(value: unknown): number | null {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    return null;
+  }
+  const months = Number(text);
+  if (!Number.isInteger(months) || months < 1 || months > FULL_YEAR_PRORATED_MONTHS) {
+    return null;
+  }
+  return months;
+}
+
+/**
+ * 新規追加行のうち、変更適用月差分（`computeChangeApplyMonthDiff`の値）に対して妥当でない商品の行を検出する。
+ * - 差分1〜11（期中）：按分月数が差分と一致するnヶ月分商品のみ許可（フル年額商品は不正）
+ * - 差分0（更新タイミング）・12以上（運用上起こりえないため防御的に同じ扱い）：フル年額商品のみ許可
+ * - 差分が負：検証しない（変更適用月差分の検証でブロックされるため）
+ * 商品が選択されていない行・按分月数が数値として入力されていない行（月額商品等）はチェック対象外。
+ * （2026-11-02ユーザー確認済み。docs/plans/2026-11-02_フェーズ4ステップ2c-h_新規追加時のnヶ月分商品妥当性チェック.md参照）
+ */
+export function findProratedMonthsMismatches(
+  addedRows: AddedLineItemForProratedMonthsValidation[],
+  changeApplyMonthDiff: number
+): ProratedMonthsMismatch[] {
+  if (changeApplyMonthDiff < 0) {
+    return [];
+  }
+
+  const isMidTerm =
+    changeApplyMonthDiff >= 1 && changeApplyMonthDiff < FULL_YEAR_PRORATED_MONTHS;
+  const mismatches: ProratedMonthsMismatch[] = [];
+
+  addedRows.forEach((row, index) => {
+    if (String(row.productCode ?? "").trim() === "") {
+      return;
+    }
+    const months = parseProratedMonths(row.proratedMonths);
+    if (months === null) {
+      return;
+    }
+
+    let kind: ProratedMonthsMismatchKind | null = null;
+    if (isMidTerm) {
+      if (months === FULL_YEAR_PRORATED_MONTHS) {
+        kind = "fullYearOnMidTerm";
+      } else if (months !== changeApplyMonthDiff) {
+        kind = "monthsMismatch";
+      }
+    } else if (months !== FULL_YEAR_PRORATED_MONTHS) {
+      kind = "partialOnRenewal";
+    }
+
+    if (kind) {
+      mismatches.push({
+        rowIndex: index + 1,
+        productName: String(row.productName ?? ""),
+        proratedMonths: months,
+        kind,
+      });
+    }
+  });
+
+  return mismatches;
+}
