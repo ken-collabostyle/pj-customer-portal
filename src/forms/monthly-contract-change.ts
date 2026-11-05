@@ -1,6 +1,7 @@
 // 【クラウド版】注文書兼利用申込書（月額：契約変更）フォーム専用カスタマイズ。
-// フェーズ1の各ステップ（a, b, c, e, f）はこのファイルに順次イベントハンドラーを追加していく。
+// フェーズ1の各ステップ（a, b, c, e, f）と、★1・数量チェックはこのファイルに順次イベントハンドラーを追加していく。
 // 参照: docs/plans/2026-08-25_フェーズ1ステップa_インスタンス名UIとkintone連携.md
+//       docs/plans/2026-11-05_月額版_テスト環境ライセンスURL希望必須チェックと数量チェック.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
@@ -16,7 +17,10 @@ import {
 } from "./monthly-contract-change-logic";
 import {
   computeEarliestAllowedApplyMonth,
+  findEmptyTestEnvUrlFields,
+  findInvalidAddedQuantities,
   findUserCountMismatches,
+  hasTestEnvLicenseProduct,
   isApplyMonthSelectionAllowed,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
@@ -52,6 +56,13 @@ const LOCKED_FIELD_BACKGROUND_COLOR = "rgb(241, 243, 245)";
 // オプション等新規追加欄（ステップe）のパーツID。
 const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
 const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
+const ADDED_PRODUCT_CODE_PART_ID = "fidAddedProductCode";
+const ADDED_PRODUCT_NAME_PART_ID = "fidAddedProductName";
+
+// ★1：テスト環境ライセンス追加時に必須となるURL希望のパーツID。
+const TEST_ENV_URL_FIRST_CHOICE_PART_ID = "fidTestEnvUrlFirstChoice";
+const TEST_ENV_URL_SECOND_CHOICE_PART_ID = "fidTestEnvUrlSecondChoice";
+const TEST_ENV_URL_THIRD_CHOICE_PART_ID = "fidTestEnvUrlThirdChoice";
 
 // kintoneから取得した「現在有効な月額契約」レコードのローカルキャッシュ。
 // インスタンス切り替え時はここから再フィルタするだけで、kintoneへの再リクエストは行わない。
@@ -168,6 +179,59 @@ function applyLineItemsToTable(
     // ステップe（オプションのユーザー数整合性チェック）用に区分を保持する。
     currentLineItemCategories[index] = lineItem ? lineItem.category : "";
   });
+}
+
+/**
+ * 商品が選択された新規追加行の追加商品契約数が、1以上の整数であることを検証する。
+ * 未入力・0のまま申請を進めるのはおかしいため、警告して数量の入力を促し、申請をブロックする
+ * （テスト環境ライセンス行に限らず、商品が選択されたすべての新規追加行が対象。年額版ステップ3-1と同じ。
+ * docs/plans/2026-11-05_月額版_テスト環境ライセンスURL希望必須チェックと数量チェック.md参照）。
+ */
+function validateAddedProductQuantities(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const addedRows = tableRows.map((row) => ({
+    productCode: row[ADDED_PRODUCT_CODE_PART_ID].value,
+    productName: row[ADDED_PRODUCT_NAME_PART_ID].value,
+    quantity: row[ADDED_PRODUCT_QUANTITY_PART_ID].value,
+  }));
+
+  const [firstInvalid] = findInvalidAddedQuantities(addedRows);
+  if (!firstInvalid) {
+    return true;
+  }
+
+  alert(
+    `追加商品『${firstInvalid.productName}』の追加商品契約数が未入力または0です。1以上の数量を入力してください。`
+  );
+  return false;
+}
+
+/**
+ * テスト環境ライセンス（商品コードに`CCTLST0000`を含む新規追加商品）が追加された場合に、
+ * テスト環境のURL希望①〜③がすべて入力されているかを検証する（★1。年額版ステップ3-1と同じ）。
+ * コラボフォームのJS APIにはパーツの必須を動的に切り替える手段がないため、確認・送信時にブロックする。
+ * 既存契約のテスト環境ライセンスは対象外（新規追加された場合のみ）。
+ */
+function validateTestEnvUrls(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const productCodes = tableRows.map((row) => row[ADDED_PRODUCT_CODE_PART_ID].value);
+  if (!hasTestEnvLicenseProduct(productCodes)) {
+    return true;
+  }
+
+  const emptyFields = findEmptyTestEnvUrlFields({
+    firstChoice: data.parts[TEST_ENV_URL_FIRST_CHOICE_PART_ID].value,
+    secondChoice: data.parts[TEST_ENV_URL_SECOND_CHOICE_PART_ID].value,
+    thirdChoice: data.parts[TEST_ENV_URL_THIRD_CHOICE_PART_ID].value,
+  });
+  if (emptyFields.length === 0) {
+    return true;
+  }
+
+  alert(
+    `テスト環境ライセンスを追加する場合は、テスト環境のURL希望①〜③をすべて入力してください。（未入力：${emptyFields.join("、")}）`
+  );
+  return false;
 }
 
 /**
@@ -474,6 +538,8 @@ collaboform.events.on("form.confirm", function (data) {
   return (
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
+    validateAddedProductQuantities(data) &&
+    validateTestEnvUrls(data) &&
     validateOptionUserCounts(data)
   );
 });
@@ -481,6 +547,8 @@ collaboform.events.on("form.submit", function (data) {
   return (
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
+    validateAddedProductQuantities(data) &&
+    validateTestEnvUrls(data) &&
     validateOptionUserCounts(data)
   );
 });

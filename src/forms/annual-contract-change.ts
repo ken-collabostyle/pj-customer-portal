@@ -20,11 +20,8 @@ import {
   extractUniqueInstances,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
-  findEmptyTestEnvUrlFields,
-  findInvalidAddedQuantities,
   findMidTermChanges,
   findProratedMonthsMismatches,
-  hasTestEnvLicenseProduct,
   parseContractExpiryMonth,
   toContractRecord,
   type ContractRecord,
@@ -32,7 +29,10 @@ import {
 } from "./annual-contract-change-logic";
 import {
   computeEarliestAllowedApplyMonth,
+  findEmptyTestEnvUrlFields,
+  findInvalidAddedQuantities,
   findUserCountMismatches,
+  hasTestEnvLicenseProduct,
   isApplyMonthSelectionAllowed,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
