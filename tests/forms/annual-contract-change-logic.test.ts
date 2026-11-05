@@ -5,7 +5,11 @@ import {
   computeChangeApplyMonthDiff,
   CONTRACT_DB_FIELD_CODES,
   extractUniqueInstances,
+  findEmptyTestEnvUrlFields,
+  findInvalidAddedQuantities,
+  findMidTermChanges,
   findProratedMonthsMismatches,
+  hasTestEnvLicenseProduct,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
   findBaseRecord,
@@ -378,5 +382,171 @@ describe("findProratedMonthsMismatches", () => {
     expect(findProratedMonthsMismatches([row("5")], 5)).toEqual([]);
     expect(findProratedMonthsMismatches([row(5)], 5)).toEqual([]);
     expect(findProratedMonthsMismatches([row("3")], 5)).toEqual(findProratedMonthsMismatches([row(3)], 5));
+  });
+});
+
+describe("findInvalidAddedQuantities", () => {
+  function row(quantity: unknown, overrides: { productCode?: unknown; productName?: unknown } = {}) {
+    return {
+      productCode: "productCode" in overrides ? overrides.productCode : "CODE-1",
+      productName: "productName" in overrides ? overrides.productName : "商品A",
+      quantity,
+    };
+  }
+
+  it("数量が1以上の整数なら対象外", () => {
+    expect(findInvalidAddedQuantities([row(1), row("5"), row(100)])).toEqual([]);
+  });
+
+  it("未入力・空白・null・undefined・0・負数・小数・数値でない場合は不正として返す", () => {
+    const rows = [row(""), row("  "), row(null), row(undefined), row(0), row("0"), row(-1), row(2.5), row("abc")];
+    const result = findInvalidAddedQuantities(rows);
+    expect(result.map((r) => r.rowIndex)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(result[0]).toEqual({ rowIndex: 1, productName: "商品A" });
+  });
+
+  it("商品コードのみ・商品名のみが入力された行も対象になる", () => {
+    expect(findInvalidAddedQuantities([row("", { productName: "" })])).toHaveLength(1);
+    expect(findInvalidAddedQuantities([row("", { productCode: "" })])).toHaveLength(1);
+  });
+
+  it("商品が未選択（コード・名前とも空）の行は数量が不正でも対象外", () => {
+    expect(
+      findInvalidAddedQuantities([
+        row("", { productCode: "", productName: "" }),
+        row(0, { productCode: "  ", productName: null }),
+        row("", { productCode: undefined, productName: undefined }),
+      ])
+    ).toEqual([]);
+  });
+
+  it("複数行のうち不正な行のみ（行番号つき）を返す", () => {
+    const rows = [row(1, { productName: "正常" }), row("", { productName: "数量なし" }), row(3)];
+    expect(findInvalidAddedQuantities(rows)).toEqual([{ rowIndex: 2, productName: "数量なし" }]);
+  });
+
+  it("値が文字列・数値のどちらで渡されても同じ結果になる", () => {
+    expect(findInvalidAddedQuantities([row("3")])).toEqual(findInvalidAddedQuantities([row(3)]));
+    expect(findInvalidAddedQuantities([row("0")])).toEqual(findInvalidAddedQuantities([row(0)]));
+  });
+});
+
+describe("hasTestEnvLicenseProduct", () => {
+  it("商品コードにCCTLST0000を含めばtrue（前後に文字があっても）", () => {
+    expect(hasTestEnvLicenseProduct(["CCTLST0000"])).toBe(true);
+    expect(hasTestEnvLicenseProduct(["XX-CCTLST0000-YY"])).toBe(true);
+  });
+
+  it("含まなければfalse", () => {
+    expect(hasTestEnvLicenseProduct(["CODE-1", "CCTLST0001"])).toBe(false);
+  });
+
+  it("空・null・undefined・空配列はfalse", () => {
+    expect(hasTestEnvLicenseProduct(["", null, undefined])).toBe(false);
+    expect(hasTestEnvLicenseProduct([])).toBe(false);
+  });
+
+  it("複数行のうち1行のみ該当してもtrue", () => {
+    expect(hasTestEnvLicenseProduct(["CODE-1", "", "CCTLST0000", "CODE-2"])).toBe(true);
+  });
+});
+
+describe("findEmptyTestEnvUrlFields", () => {
+  it("3つとも入力済みなら空配列", () => {
+    expect(findEmptyTestEnvUrlFields({ firstChoice: "a", secondChoice: "b", thirdChoice: "c" })).toEqual([]);
+  });
+
+  it("一部未入力なら該当項目の表示名のみ返す", () => {
+    expect(findEmptyTestEnvUrlFields({ firstChoice: "a", secondChoice: "", thirdChoice: "c" })).toEqual([
+      "テスト環境のURL希望②",
+    ]);
+  });
+
+  it("全て未入力なら3項目を返す", () => {
+    expect(findEmptyTestEnvUrlFields({ firstChoice: "", secondChoice: "", thirdChoice: "" })).toEqual([
+      "テスト環境のURL希望①",
+      "テスト環境のURL希望②",
+      "テスト環境のURL希望③",
+    ]);
+  });
+
+  it("空白のみ・null・undefinedは未入力扱い", () => {
+    expect(
+      findEmptyTestEnvUrlFields({ firstChoice: "  ", secondChoice: null, thirdChoice: undefined })
+    ).toHaveLength(3);
+  });
+});
+
+describe("findMidTermChanges", () => {
+  function row(
+    changedQuantity: unknown,
+    overrides: { currentQuantity?: unknown; isCancelled?: boolean; productName?: unknown } = {}
+  ) {
+    return {
+      productName: "productName" in overrides ? overrides.productName : "商品A",
+      currentQuantity: "currentQuantity" in overrides ? overrides.currentQuantity : 10,
+      changedQuantity,
+      isCancelled: overrides.isCancelled ?? false,
+    };
+  }
+
+  describe("期中（差分1〜11）", () => {
+    it("解約ONは cancel", () => {
+      expect(findMidTermChanges([row(0, { isCancelled: true })], 5)).toEqual([
+        { rowIndex: 1, productName: "商品A", kind: "cancel" },
+      ]);
+    });
+
+    it("減数は reduce、増数は increase", () => {
+      expect(findMidTermChanges([row(5)], 5)).toEqual([
+        { rowIndex: 1, productName: "商品A", kind: "reduce" },
+      ]);
+      expect(findMidTermChanges([row(15)], 5)).toEqual([
+        { rowIndex: 1, productName: "商品A", kind: "increase" },
+      ]);
+    });
+
+    it("同数・継続のままなら対象外", () => {
+      expect(findMidTermChanges([row(10), row("10")], 5)).toEqual([]);
+    });
+
+    it("差分1・11でも判定する", () => {
+      expect(findMidTermChanges([row(5)], 1)).toHaveLength(1);
+      expect(findMidTermChanges([row(5)], 11)).toHaveLength(1);
+    });
+  });
+
+  it("更新タイミング（差分0）は制限なし", () => {
+    expect(findMidTermChanges([row(0, { isCancelled: true }), row(5), row(15)], 0)).toEqual([]);
+  });
+
+  it("差分12以上・負は対象外（別途ブロックされる）", () => {
+    expect(findMidTermChanges([row(5)], 12)).toEqual([]);
+    expect(findMidTermChanges([row(5)], 13)).toEqual([]);
+    expect(findMidTermChanges([row(5)], -1)).toEqual([]);
+  });
+
+  it("現商品契約数が空の行（既存契約行でない）は対象外", () => {
+    expect(
+      findMidTermChanges([row(5, { currentQuantity: "" }), row(5, { currentQuantity: null })], 5)
+    ).toEqual([]);
+  });
+
+  it("変更後契約数が数値でない・空の行は減数・増数の判定対象外だが、解約は判定される", () => {
+    expect(findMidTermChanges([row(""), row("abc"), row(null)], 5)).toEqual([]);
+    expect(findMidTermChanges([row("", { isCancelled: true })], 5)).toHaveLength(1);
+  });
+
+  it("複数行が混在する場合は該当行のみ（行番号つき）を返す", () => {
+    const rows = [
+      row(10, { productName: "変更なし" }),
+      row(3, { productName: "減数" }),
+      row(0, { productName: "解約", isCancelled: true }),
+      row(10, { productName: "新規のみ", currentQuantity: "" }),
+    ];
+    expect(findMidTermChanges(rows, 5)).toEqual([
+      { rowIndex: 2, productName: "減数", kind: "reduce" },
+      { rowIndex: 3, productName: "解約", kind: "cancel" },
+    ]);
   });
 });

@@ -314,3 +314,147 @@ export function findProratedMonthsMismatches(
 
   return mismatches;
 }
+
+// ===== ステップ3-1：新規追加行の数量チェック・テスト環境ライセンス追加時のURL希望必須チェック（★1） =====
+// docs/plans/2026-11-02_フェーズ4ステップ3-1_テスト環境ライセンス申込み時のURL希望必須チェック.md参照。
+
+/** テスト環境ライセンスの商品コードに含まれる文字列（2026-11-02ユーザー確認済み）。 */
+export const TEST_ENV_LICENSE_PRODUCT_CODE_KEYWORD = "CCTLST0000";
+
+function isBlankValue(value: unknown): boolean {
+  return String(value ?? "").trim() === "";
+}
+
+/** 新規追加行（明細テーブル「2. オプション等新規追加」列側）のうち、数量チェックに必要な最小限のデータ。 */
+export interface AddedLineItemForQuantityValidation {
+  productCode: unknown;
+  productName: unknown;
+  /** `fidAddedProductQuantity`の値。文字列・数値のどちらで渡されても扱えるようにする。 */
+  quantity: unknown;
+}
+
+export interface InvalidAddedQuantity {
+  /** 1始まりの行番号（新規追加行の配列内でのインデックス）。 */
+  rowIndex: number;
+  productName: string;
+}
+
+/**
+ * 商品が選択されている新規追加行（商品コードまたは商品名が入力されている行）のうち、
+ * 追加商品契約数が1以上の整数でない行（未入力・空白のみ・数値でない・0以下・小数）を検出する。
+ * 商品が未選択の行は、数量が入力されていても対象外（2026-11-02ユーザー確認済み）。
+ */
+export function findInvalidAddedQuantities(
+  addedRows: AddedLineItemForQuantityValidation[]
+): InvalidAddedQuantity[] {
+  const invalid: InvalidAddedQuantity[] = [];
+
+  addedRows.forEach((row, index) => {
+    if (isBlankValue(row.productCode) && isBlankValue(row.productName)) {
+      return;
+    }
+    const text = String(row.quantity ?? "").trim();
+    const quantity = text === "" ? Number.NaN : Number(text);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      invalid.push({ rowIndex: index + 1, productName: String(row.productName ?? "") });
+    }
+  });
+
+  return invalid;
+}
+
+/** 商品コードに`CCTLST0000`を含む商品（テスト環境ライセンス）が1つでもあるか。 */
+export function hasTestEnvLicenseProduct(productCodes: unknown[]): boolean {
+  return productCodes.some((code) =>
+    String(code ?? "").includes(TEST_ENV_LICENSE_PRODUCT_CODE_KEYWORD)
+  );
+}
+
+/** テスト環境ライセンス追加時に必須となるURL希望のうち、未入力（空・空白のみ）の項目の表示名を返す。 */
+export function findEmptyTestEnvUrlFields(values: {
+  firstChoice: unknown;
+  secondChoice: unknown;
+  thirdChoice: unknown;
+}): string[] {
+  const entries: [string, unknown][] = [
+    ["テスト環境のURL希望①", values.firstChoice],
+    ["テスト環境のURL希望②", values.secondChoice],
+    ["テスト環境のURL希望③", values.thirdChoice],
+  ];
+  return entries.filter(([, value]) => isBlankValue(value)).map(([name]) => name);
+}
+
+// ===== ステップ3-2：期中の解約・減数・増数の制限 =====
+// docs/plans/2026-11-02_フェーズ4ステップ3-2_期中の解約減数の制限.md参照。
+
+/** 変更適用月差分がこの値以上になるのは運用上起こりえない（想定外の状態として申請不可とする）。 */
+export const CHANGE_APPLY_MONTH_DIFF_ABNORMAL_THRESHOLD = 12;
+
+/** 既存契約行（明細テーブル「1. 変更後契約数」列側）のうち、期中の変更制限チェックに必要な最小限のデータ。 */
+export interface ExistingLineItemForMidTermValidation {
+  productName: unknown;
+  currentQuantity: unknown;
+  changedQuantity: unknown;
+  isCancelled: boolean;
+}
+
+export type MidTermChangeKind = "cancel" | "reduce" | "increase";
+
+export interface MidTermChange {
+  /** 1始まりの行番号（明細テーブル内でのインデックス）。 */
+  rowIndex: number;
+  productName: string;
+  kind: MidTermChangeKind;
+}
+
+function toQuantityOrNull(value: unknown): number | null {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    return null;
+  }
+  const quantity = Number(text);
+  return Number.isNaN(quantity) ? null : quantity;
+}
+
+/**
+ * 期中（変更適用月差分が1以上12未満）に、既存契約行の解約・減数・増数が行われた行を検出する。
+ * 年額契約は期中の解約・減数・プランダウン・増数ができず、更新タイミング（差分0）であれば可能
+ * （2026-11-02ユーザー確認済み）。差分0・負・12以上は対象外（12以上は別途ブロックする）。
+ * 現商品契約数が空の行（既存契約行でない行）は対象外。変更後契約数が数値でない行は、
+ * 減数・増数の判定対象外（解約は`isCancelled`で判定）。
+ */
+export function findMidTermChanges(
+  existingRows: ExistingLineItemForMidTermValidation[],
+  changeApplyMonthDiff: number
+): MidTermChange[] {
+  if (changeApplyMonthDiff < 1 || changeApplyMonthDiff >= CHANGE_APPLY_MONTH_DIFF_ABNORMAL_THRESHOLD) {
+    return [];
+  }
+
+  const changes: MidTermChange[] = [];
+
+  existingRows.forEach((row, index) => {
+    const current = toQuantityOrNull(row.currentQuantity);
+    if (current === null) {
+      return;
+    }
+
+    let kind: MidTermChangeKind | null = null;
+    if (row.isCancelled) {
+      kind = "cancel";
+    } else {
+      const changed = toQuantityOrNull(row.changedQuantity);
+      if (changed !== null && changed < current) {
+        kind = "reduce";
+      } else if (changed !== null && changed > current) {
+        kind = "increase";
+      }
+    }
+
+    if (kind) {
+      changes.push({ rowIndex: index + 1, productName: String(row.productName ?? ""), kind });
+    }
+  });
+
+  return changes;
+}

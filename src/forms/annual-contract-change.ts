@@ -1,5 +1,5 @@
 // 【クラウド版】注文書兼利用申込書（年額：契約変更）フォーム専用カスタマイズ。
-// フェーズ4の各ステップ（a, b, c, d, 2c-g, 2c-h）はこのファイルに順次イベントハンドラーを追加していく
+// フェーズ4の各ステップ（a, b, c, d, 2c-g, 2c-h, 3-1, 3-2）はこのファイルに順次イベントハンドラーを追加していく
 // （月額版のmonthly-contract-change.tsと同じ運用パターン）。
 // 参照: docs/plans/2026-09-28_フェーズ4ステップa_年額版インスタンス名UIとkintone連携.md
 //       docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md
@@ -7,17 +7,24 @@
 //       docs/plans/2026-10-22_フェーズ4ステップd_年額版変更適用希望年月デフォルト値と選択可能範囲.md
 //       docs/plans/2026-10-26_フェーズ4ステップ2c-g_変更適用月差分の自動計算.md
 //       docs/plans/2026-11-02_フェーズ4ステップ2c-h_新規追加時のnヶ月分商品妥当性チェック.md
+//       docs/plans/2026-11-02_フェーズ4ステップ3-1_テスト環境ライセンス申込み時のURL希望必須チェック.md
+//       docs/plans/2026-11-02_フェーズ4ステップ3-2_期中の解約減数の制限.md
 //
 // ===== ステップa: インスタンス名UI + kintoneから現在契約情報を取得・表示 =====
 
 import {
   buildCurrentContractSummary,
   buildLineItems,
+  CHANGE_APPLY_MONTH_DIFF_ABNORMAL_THRESHOLD,
   computeChangeApplyMonthDiff,
   extractUniqueInstances,
   filterActiveAnnualRecords,
   filterRecordsByInstance,
+  findEmptyTestEnvUrlFields,
+  findInvalidAddedQuantities,
+  findMidTermChanges,
   findProratedMonthsMismatches,
+  hasTestEnvLicenseProduct,
   parseContractExpiryMonth,
   toContractRecord,
   type ContractRecord,
@@ -40,6 +47,10 @@ const CONTRACT_EXPIRY_PART_ID = "fidCurrentContractExpiry";
 const CHANGE_APPLY_YEAR_PART_ID = "fidChangeApplyYear";
 const CHANGE_APPLY_MONTH_PART_ID = "fidChangeApplyMonth";
 const CHANGE_APPLY_MONTH_DIFF_PART_ID = "fidChangeApplyMonthDiff";
+// ステップ3-1（★1）：テスト環境ライセンス追加時に必須となるURL希望。
+const TEST_ENV_URL_FIRST_CHOICE_PART_ID = "fidTestEnvUrlFirstChoice";
+const TEST_ENV_URL_SECOND_CHOICE_PART_ID = "fidTestEnvUrlSecondChoice";
+const TEST_ENV_URL_THIRD_CHOICE_PART_ID = "fidTestEnvUrlThirdChoice";
 const TABLE_PART_ID = "tbl_1";
 
 type ContractLineItemRow = Record<string, CollaboformPartValue<string>>;
@@ -162,6 +173,10 @@ const CHANGE_APPLY_MONTH_DIFF_LOCK_FAILURE_MESSAGE =
 const CHANGE_APPLY_MONTH_DIFF_NEGATIVE_MESSAGE =
   "変更適用月差分が0未満になるため申請できません。変更適用希望年月が現在契約期限の月以前になるよう選択してください。";
 
+// ステップ3-2：変更適用月差分が12以上になるのは運用上起こりえない（想定外の状態として申請不可とする）。
+const CHANGE_APPLY_MONTH_DIFF_ABNORMAL_MESSAGE =
+  "変更適用月差分が12ヶ月以上になっています。想定外の状態のため申請できません。お手数ですがシステム管理者にお問い合わせください。";
+
 const OPTION_USER_COUNT_MISMATCH_MESSAGE =
   "オプションのユーザー数が、ベースライセンスのユーザー数と一致していません。ご注文内容をご確認ください。";
 
@@ -259,7 +274,8 @@ function updateChangeApplyMonthDiff(data: CollaboformEventData): void {
 }
 
 /**
- * 変更適用月差分が0未満（変更適用希望月が現在契約期限の月より後）の場合は申請不可とする。
+ * 変更適用月差分が0未満（変更適用希望月が現在契約期限の月より後）、または12以上（運用上起こりえない
+ * 想定外の状態。ステップ3-2で追加）の場合は申請不可とする。
  * 差分0は更新タイミング（変更適用希望月＝契約期限の月）のため申請可
  * （2026-10-26に「0以下は申請不可」としたが、2026-11-02にユーザーが更新タイミングの差分0は許可と確認し見直した）。
  * 算出できない場合（年月未入力等）は、必須チェック等に委ねてスキップする。
@@ -270,12 +286,19 @@ function validateChangeApplyMonthDiff(data: CollaboformEventData): boolean {
     toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
     currentContractExpiry
   );
-  if (diff === null || diff >= 0) {
+  if (diff === null) {
     return true;
   }
-
-  alert(CHANGE_APPLY_MONTH_DIFF_NEGATIVE_MESSAGE);
-  return false;
+  if (diff < 0) {
+    alert(CHANGE_APPLY_MONTH_DIFF_NEGATIVE_MESSAGE);
+    return false;
+  }
+  // ステップ3-2：運用上起こりえない差分（12以上）は、想定外の状態として警告し申請不可とする。
+  if (diff >= CHANGE_APPLY_MONTH_DIFF_ABNORMAL_THRESHOLD) {
+    alert(CHANGE_APPLY_MONTH_DIFF_ABNORMAL_MESSAGE);
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -362,6 +385,97 @@ function applyLineItemsToTable(
     currentLineItemCategories[index] = lineItem ? lineItem.category : "";
     cancelledRowState[index] = false;
   });
+}
+
+/**
+ * 期中（変更適用月差分1〜11）に、既存契約行の解約・減数・増数が行われていないかを検証する（ステップ3-2）。
+ * 年額契約は期中の解約・減数・プランダウン・増数ができず、更新タイミング（差分0）であれば可能。
+ * 変更適用月差分はパーツ値を読まず再算出する。算出できない場合はスキップする
+ * （validateChangeApplyMonthDiff・contractExpiryMissingで別途ブロックされるため）。
+ * 確認・送信時のみ判定する（解約チェックON時・減数入力時の即時警告は行わない。ユーザー確認済み）。
+ * docs/plans/2026-11-02_フェーズ4ステップ3-2_期中の解約減数の制限.md参照。
+ */
+function validateMidTermChanges(data: CollaboformEventData): boolean {
+  const diff = computeChangeApplyMonthDiff(
+    toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value),
+    toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value),
+    currentContractExpiry
+  );
+  if (diff === null) {
+    return true;
+  }
+
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const existingRows = tableRows.map((row) => ({
+    productName: row[LINE_ITEM_COLUMN_PART_IDS.productName].value,
+    currentQuantity: row[LINE_ITEM_COLUMN_PART_IDS.currentQuantity].value,
+    changedQuantity: row[LINE_ITEM_COLUMN_PART_IDS.changedQuantity].value,
+    isCancelled: row[CANCEL_CHECKBOX_PART_ID].value === CANCEL_CHECKED_VALUE,
+  }));
+
+  const [firstChange] = findMidTermChanges(existingRows, diff);
+  if (!firstChange) {
+    return true;
+  }
+
+  const kindLabel = { cancel: "解約", reduce: "減数", increase: "増数" }[firstChange.kind];
+  alert(
+    `年額契約は期中の解約・減数・増数はできません。更新タイミング（変更適用希望年月を現在契約期限の月に設定）で申請してください。（対象：『${firstChange.productName}』の${kindLabel}）`
+  );
+  return false;
+}
+
+/**
+ * 商品が選択された新規追加行の追加商品契約数が、1以上の整数であることを検証する（ステップ3-1）。
+ * 未入力・0のまま申請を進めるのはおかしいため、警告して数量の入力を促し、申請をブロックする
+ * （テスト環境ライセンス行に限らず、商品が選択されたすべての新規追加行が対象。ユーザー確認済み）。
+ * docs/plans/2026-11-02_フェーズ4ステップ3-1_テスト環境ライセンス申込み時のURL希望必須チェック.md参照。
+ */
+function validateAddedProductQuantities(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const addedRows = tableRows.map((row) => ({
+    productCode: row[ADDED_PRODUCT_CODE_PART_ID].value,
+    productName: row[ADDED_PRODUCT_NAME_PART_ID].value,
+    quantity: row[ADDED_PRODUCT_QUANTITY_PART_ID].value,
+  }));
+
+  const [firstInvalid] = findInvalidAddedQuantities(addedRows);
+  if (!firstInvalid) {
+    return true;
+  }
+
+  alert(
+    `追加商品『${firstInvalid.productName}』の追加商品契約数が未入力または0です。1以上の数量を入力してください。`
+  );
+  return false;
+}
+
+/**
+ * テスト環境ライセンス（商品コードに`CCTLST0000`を含む新規追加商品）が追加された場合に、
+ * テスト環境のURL希望①〜③がすべて入力されているかを検証する（ステップ3-1、★1）。
+ * コラボフォームのJS APIにはパーツの必須を動的に切り替える手段がないため、確認・送信時にブロックする。
+ * 既存契約のテスト環境ライセンスは対象外（新規追加された場合のみ。ユーザー確認済み）。
+ */
+function validateTestEnvUrls(data: CollaboformEventData): boolean {
+  const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
+  const productCodes = tableRows.map((row) => row[ADDED_PRODUCT_CODE_PART_ID].value);
+  if (!hasTestEnvLicenseProduct(productCodes)) {
+    return true;
+  }
+
+  const emptyFields = findEmptyTestEnvUrlFields({
+    firstChoice: data.parts[TEST_ENV_URL_FIRST_CHOICE_PART_ID].value,
+    secondChoice: data.parts[TEST_ENV_URL_SECOND_CHOICE_PART_ID].value,
+    thirdChoice: data.parts[TEST_ENV_URL_THIRD_CHOICE_PART_ID].value,
+  });
+  if (emptyFields.length === 0) {
+    return true;
+  }
+
+  alert(
+    `テスト環境ライセンスを追加する場合は、テスト環境のURL希望①〜③をすべて入力してください。（未入力：${emptyFields.join("、")}）`
+  );
+  return false;
 }
 
 /**
@@ -719,7 +833,10 @@ collaboform.events.on("form.confirm", function (data) {
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
     validateChangeApplyMonthDiff(data) &&
+    validateMidTermChanges(data) &&
     validateAddedProductProratedMonths(data) &&
+    validateAddedProductQuantities(data) &&
+    validateTestEnvUrls(data) &&
     validateOptionUserCounts(data)
   );
 });
@@ -728,7 +845,10 @@ collaboform.events.on("form.submit", function (data) {
     blockSubmissionIfDataIssueDetected() &&
     validateChangeApplyMonth(data) &&
     validateChangeApplyMonthDiff(data) &&
+    validateMidTermChanges(data) &&
     validateAddedProductProratedMonths(data) &&
+    validateAddedProductQuantities(data) &&
+    validateTestEnvUrls(data) &&
     validateOptionUserCounts(data)
   );
 });
