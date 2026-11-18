@@ -1,5 +1,5 @@
 {
-    "revision": "12",
+    "revision": "14",
     "properties": {
         "標準単価": {
             "type": "NUMBER",
@@ -60,6 +60,28 @@
             "defaultValue": [],
             "align": "HORIZONTAL"
         },
+        "数量入力制限": {
+            "type": "DROP_DOWN",
+            "code": "数量入力制限",
+            "label": "★数量入力制限",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "1": {
+                    "label": "1",
+                    "index": "0"
+                },
+                "b": {
+                    "label": "b",
+                    "index": "1"
+                },
+                "n": {
+                    "label": "n",
+                    "index": "2"
+                }
+            },
+            "defaultValue": ""
+        },
         "更新者": {
             "type": "MODIFIER",
             "code": "更新者",
@@ -85,6 +107,21 @@
             "label": "ステータス",
             "enabled": false
         },
+        "エンタープライズ_表示": {
+            "type": "CHECK_BOX",
+            "code": "エンタープライズ_表示",
+            "label": "★エンタープライズ：表示",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "表示": {
+                    "label": "表示",
+                    "index": "0"
+                }
+            },
+            "defaultValue": [],
+            "align": "HORIZONTAL"
+        },
         "検索ワード_NON": {
             "type": "SINGLE_LINE_TEXT",
             "code": "検索ワード_NON",
@@ -97,6 +134,36 @@
             "hideExpression": false,
             "unique": false,
             "defaultValue": ""
+        },
+        "スタンダード_表示": {
+            "type": "CHECK_BOX",
+            "code": "スタンダード_表示",
+            "label": "★スタンダード：表示",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "表示": {
+                    "label": "表示",
+                    "index": "0"
+                }
+            },
+            "defaultValue": [],
+            "align": "HORIZONTAL"
+        },
+        "プレミアム_表示": {
+            "type": "CHECK_BOX",
+            "code": "プレミアム_表示",
+            "label": "★プレミアム：表示",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "表示": {
+                    "label": "表示",
+                    "index": "0"
+                }
+            },
+            "defaultValue": [],
+            "align": "HORIZONTAL"
         },
         "検索_契約管理": {
             "type": "SINGLE_LINE_TEXT",
@@ -116,6 +183,34 @@
             "code": "カテゴリー",
             "label": "カテゴリー",
             "enabled": false
+        },
+        "商品名_マイページ用": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "商品名_マイページ用",
+            "label": "商品名_マイページ用",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "直販アカガバ_表示": {
+            "type": "CHECK_BOX",
+            "code": "直販アカガバ_表示",
+            "label": "★直販（アカガバ）Ｇ：表示",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "表示": {
+                    "label": "表示",
+                    "index": "0"
+                }
+            },
+            "defaultValue": [],
+            "align": "HORIZONTAL"
         },
         "作業者": {
             "type": "STATUS_ASSIGNEE",
@@ -275,6 +370,21 @@
             "hideExpression": false,
             "unique": false,
             "defaultValue": ""
+        },
+        "直販Ｇ_表示": {
+            "type": "CHECK_BOX",
+            "code": "直販Ｇ_表示",
+            "label": "★直販Ｇ：表示",
+            "noLabel": false,
+            "required": false,
+            "options": {
+                "表示": {
+                    "label": "表示",
+                    "index": "0"
+                }
+            },
+            "defaultValue": [],
+            "align": "HORIZONTAL"
         },
         "ドロップダウン_0": {
             "type": "DROP_DOWN",

@@ -1,5 +1,5 @@
 {
-    "revision": "11",
+    "revision": "16",
     "properties": {
         "備考": {
             "type": "MULTI_LINE_TEXT",
@@ -9,58 +9,11 @@
             "required": false,
             "defaultValue": ""
         },
-        "受注管理番号": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "受注管理番号",
-            "label": "受注管理番号",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "レコード番号": {
             "type": "RECORD_NUMBER",
             "code": "レコード番号",
             "label": "レコード番号",
             "noLabel": false
-        },
-        "月額年額": {
-            "type": "RADIO_BUTTON",
-            "code": "月額年額",
-            "label": "月額/年額",
-            "noLabel": false,
-            "required": true,
-            "options": {
-                "年額": {
-                    "label": "年額",
-                    "index": "0"
-                },
-                "月額": {
-                    "label": "月額",
-                    "index": "1"
-                }
-            },
-            "defaultValue": "年額",
-            "align": "HORIZONTAL"
-        },
-        "単価_月額_税抜": {
-            "type": "NUMBER",
-            "code": "単価_月額_税抜",
-            "label": "単価（月額：税抜）",
-            "noLabel": false,
-            "required": false,
-            "minValue": "",
-            "maxValue": "",
-            "digit": false,
-            "unique": false,
-            "defaultValue": "",
-            "displayScale": "",
-            "unit": "",
-            "unitPosition": "BEFORE"
         },
         "顧客番号": {
             "type": "NUMBER",
@@ -77,47 +30,17 @@
             "unit": "",
             "unitPosition": "BEFORE"
         },
-        "更新者": {
-            "type": "MODIFIER",
-            "code": "更新者",
-            "label": "更新者",
-            "noLabel": false
-        },
-        "単価_特価": {
-            "type": "NUMBER",
-            "code": "単価_特価",
-            "label": "特価(年額用)",
-            "noLabel": false,
-            "required": false,
-            "minValue": "",
-            "maxValue": "",
-            "digit": false,
-            "unique": false,
-            "defaultValue": "",
-            "displayScale": "",
-            "unit": "",
-            "unitPosition": "BEFORE"
-        },
-        "補足": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "補足",
-            "label": "補足：2022年12月末時点（製品保守情報より）",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "区分": {
             "type": "RADIO_BUTTON",
             "code": "区分",
-            "label": "ラジオボタン",
+            "label": "区分",
             "noLabel": false,
             "required": true,
             "options": {
+                "テスト環境": {
+                    "label": "テスト環境",
+                    "index": "6"
+                },
                 "オプション": {
                     "label": "オプション",
                     "index": "1"
@@ -165,6 +88,283 @@
             "label": "ステータス",
             "enabled": false
         },
+        "ライセンス種類": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "ライセンス種類",
+            "label": "ライセンス種類",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "カテゴリー": {
+            "type": "CATEGORY",
+            "code": "カテゴリー",
+            "label": "カテゴリー",
+            "enabled": false
+        },
+        "分類": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "分類",
+            "label": "分類",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "顧客名": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "顧客名",
+            "label": "顧客名",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "契約ステータス": {
+            "type": "RADIO_BUTTON",
+            "code": "契約ステータス",
+            "label": "契約ステータス",
+            "noLabel": false,
+            "required": true,
+            "options": {
+                "契約中": {
+                    "label": "契約中",
+                    "index": "0"
+                }
+            },
+            "defaultValue": "契約中",
+            "align": "HORIZONTAL"
+        },
+        "ID": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "ID",
+            "label": "ID　★4/5追加",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "契約ステータス2": {
+            "type": "RADIO_BUTTON",
+            "code": "契約ステータス2",
+            "label": "契約ステータス",
+            "noLabel": false,
+            "required": true,
+            "options": {
+                "解約": {
+                    "label": "解約",
+                    "index": "3"
+                },
+                "切替": {
+                    "label": "切替",
+                    "index": "4"
+                },
+                "契約中": {
+                    "label": "契約中",
+                    "index": "0"
+                },
+                "変更予約中": {
+                    "label": "変更予約中",
+                    "index": "1"
+                },
+                "保留中": {
+                    "label": "保留中",
+                    "index": "2"
+                }
+            },
+            "defaultValue": "契約中",
+            "align": "VERTICAL"
+        },
+        "作業者": {
+            "type": "STATUS_ASSIGNEE",
+            "code": "作業者",
+            "label": "作業者",
+            "enabled": false
+        },
+        "製品型番": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "製品型番",
+            "label": "製品型番　★4/5追加",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "契約金額": {
+            "type": "NUMBER",
+            "code": "契約金額",
+            "label": "契約金額（月額のみ：税抜）",
+            "noLabel": false,
+            "required": false,
+            "minValue": "",
+            "maxValue": "",
+            "digit": false,
+            "unique": false,
+            "defaultValue": "",
+            "displayScale": "",
+            "unit": "",
+            "unitPosition": "BEFORE"
+        },
+        "ライセンス種類マスタ読込": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "ライセンス種類マスタ読込",
+            "label": "ライセンス種類マスタ読込",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "販売店名": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "販売店名",
+            "label": "販売店名（一次商流）",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "検索ID": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "検索ID",
+            "label": "検索ID",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "作成日時": {
+            "type": "CREATED_TIME",
+            "code": "作成日時",
+            "label": "作成日時",
+            "noLabel": false
+        },
+        "インスタンス": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "インスタンス",
+            "label": "インスタンス",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "受注管理番号": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "受注管理番号",
+            "label": "受注管理番号",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "月額年額": {
+            "type": "RADIO_BUTTON",
+            "code": "月額年額",
+            "label": "月額/年額",
+            "noLabel": false,
+            "required": true,
+            "options": {
+                "年額": {
+                    "label": "年額",
+                    "index": "0"
+                },
+                "月額": {
+                    "label": "月額",
+                    "index": "1"
+                }
+            },
+            "defaultValue": "年額",
+            "align": "HORIZONTAL"
+        },
+        "単価_月額_税抜": {
+            "type": "NUMBER",
+            "code": "単価_月額_税抜",
+            "label": "単価（月額：税抜）",
+            "noLabel": false,
+            "required": false,
+            "minValue": "",
+            "maxValue": "",
+            "digit": false,
+            "unique": false,
+            "defaultValue": "",
+            "displayScale": "",
+            "unit": "",
+            "unitPosition": "BEFORE"
+        },
+        "更新者": {
+            "type": "MODIFIER",
+            "code": "更新者",
+            "label": "更新者",
+            "noLabel": false
+        },
+        "単価_特価": {
+            "type": "NUMBER",
+            "code": "単価_特価",
+            "label": "特価(年額用)",
+            "noLabel": false,
+            "required": false,
+            "minValue": "",
+            "maxValue": "",
+            "digit": false,
+            "unique": false,
+            "defaultValue": "",
+            "displayScale": "",
+            "unit": "",
+            "unitPosition": "BEFORE"
+        },
+        "補足": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "補足",
+            "label": "補足：2022年12月末時点（製品保守情報より）",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
         "単価_月額用": {
             "type": "NUMBER",
             "code": "単価_月額用",
@@ -179,19 +379,6 @@
             "displayScale": "",
             "unit": "",
             "unitPosition": "BEFORE"
-        },
-        "ライセンス種類": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "ライセンス種類",
-            "label": "ライセンス種類",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
         },
         "顧客検索": {
             "type": "SINGLE_LINE_TEXT",
@@ -249,25 +436,6 @@
             "defaultValue": [],
             "align": "HORIZONTAL"
         },
-        "カテゴリー": {
-            "type": "CATEGORY",
-            "code": "カテゴリー",
-            "label": "カテゴリー",
-            "enabled": false
-        },
-        "分類": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "分類",
-            "label": "分類",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "先方管理番号": {
             "type": "SINGLE_LINE_TEXT",
             "code": "先方管理番号",
@@ -309,47 +477,6 @@
             "unique": false,
             "defaultValue": ""
         },
-        "顧客名": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "顧客名",
-            "label": "顧客名",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
-        "契約ステータス": {
-            "type": "RADIO_BUTTON",
-            "code": "契約ステータス",
-            "label": "契約ステータス",
-            "noLabel": false,
-            "required": true,
-            "options": {
-                "契約中": {
-                    "label": "契約中",
-                    "index": "0"
-                }
-            },
-            "defaultValue": "契約中",
-            "align": "HORIZONTAL"
-        },
-        "ID": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "ID",
-            "label": "ID　★4/5追加",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "サービス名_請求書用": {
             "type": "SINGLE_LINE_TEXT",
             "code": "サービス名_請求書用",
@@ -362,43 +489,6 @@
             "hideExpression": false,
             "unique": false,
             "defaultValue": ""
-        },
-        "契約ステータス2": {
-            "type": "RADIO_BUTTON",
-            "code": "契約ステータス2",
-            "label": "契約ステータス",
-            "noLabel": false,
-            "required": true,
-            "options": {
-                "解約": {
-                    "label": "解約",
-                    "index": "3"
-                },
-                "切替": {
-                    "label": "切替",
-                    "index": "4"
-                },
-                "契約中": {
-                    "label": "契約中",
-                    "index": "0"
-                },
-                "変更予約中": {
-                    "label": "変更予約中",
-                    "index": "1"
-                },
-                "保留中": {
-                    "label": "保留中",
-                    "index": "2"
-                }
-            },
-            "defaultValue": "契約中",
-            "align": "VERTICAL"
-        },
-        "作業者": {
-            "type": "STATUS_ASSIGNEE",
-            "code": "作業者",
-            "label": "作業者",
-            "enabled": false
         },
         "保守契約番号": {
             "type": "SINGLE_LINE_TEXT",
@@ -432,39 +522,11 @@
             "unique": false,
             "defaultValue": ""
         },
-        "製品型番": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "製品型番",
-            "label": "製品型番　★4/5追加",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "更新日時": {
             "type": "UPDATED_TIME",
             "code": "更新日時",
             "label": "更新日時",
             "noLabel": false
-        },
-        "契約金額": {
-            "type": "NUMBER",
-            "code": "契約金額",
-            "label": "契約金額（月額のみ：税抜）",
-            "noLabel": false,
-            "required": false,
-            "minValue": "",
-            "maxValue": "",
-            "digit": false,
-            "unique": false,
-            "defaultValue": "",
-            "displayScale": "",
-            "unit": "",
-            "unitPosition": "BEFORE"
         },
         "新規契約日": {
             "type": "DATE",
@@ -489,19 +551,6 @@
             "unique": false,
             "defaultValue": ""
         },
-        "ライセンス種類マスタ読込": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "ライセンス種類マスタ読込",
-            "label": "ライセンス種類マスタ読込",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "契約更新日": {
             "type": "DATE",
             "code": "契約更新日",
@@ -512,10 +561,10 @@
             "defaultValue": "",
             "defaultNowValue": true
         },
-        "販売店名": {
+        "インスタンス名_契約管理用": {
             "type": "SINGLE_LINE_TEXT",
-            "code": "販売店名",
-            "label": "販売店名（一次商流）",
+            "code": "インスタンス名_契約管理用",
+            "label": "インスタンス名（契約管理用）",
             "noLabel": false,
             "required": false,
             "minLength": "",
@@ -580,42 +629,10 @@
             "unique": false,
             "defaultValue": ""
         },
-        "検索ID": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "検索ID",
-            "label": "検索ID",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
         "コード": {
             "type": "SINGLE_LINE_TEXT",
             "code": "コード",
             "label": "コード",
-            "noLabel": false,
-            "required": false,
-            "minLength": "",
-            "maxLength": "",
-            "expression": "",
-            "hideExpression": false,
-            "unique": false,
-            "defaultValue": ""
-        },
-        "作成日時": {
-            "type": "CREATED_TIME",
-            "code": "作成日時",
-            "label": "作成日時",
-            "noLabel": false
-        },
-        "インスタンス": {
-            "type": "SINGLE_LINE_TEXT",
-            "code": "インスタンス",
-            "label": "インスタンス",
             "noLabel": false,
             "required": false,
             "minLength": "",
