@@ -34,6 +34,7 @@ import {
   findUserCountMismatches,
   hasTestEnvLicenseProduct,
   isApplyMonthSelectionAllowed,
+  toNumberOrNaN,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
 
@@ -223,11 +224,6 @@ function applyInstanceData(instanceName: string, data: CollaboformEventData): vo
   applyLineItemsToTable(buildLineItems(recordsForInstance), data);
   changeApplyMonthDiffReady = true;
   updateChangeApplyMonthDiff(data);
-}
-
-/** 空文字・空白のみの値は`Number("")===0`になり誤計算するため`NaN`として扱う。 */
-function toNumberOrNaN(value: unknown): number {
-  return String(value ?? "").trim() === "" ? Number.NaN : Number(value);
 }
 
 /**
@@ -619,8 +615,8 @@ function setChangedQuantityFieldLocked(rowIndex: number, locked: boolean): void 
  * DOMにレンダリングされ、選択肢を削除するDOM操作は非常に脆弱なため）。
  */
 function validateChangeApplyMonth(data: CollaboformEventData): boolean {
-  const selectedYear = Number(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
-  const selectedMonth = Number(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
+  const selectedYear = toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
+  const selectedMonth = toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
 
   if (Number.isNaN(selectedYear) || Number.isNaN(selectedMonth)) {
     return true;
@@ -770,9 +766,11 @@ collaboform.events.on("form.show", function (data) {
 
 // ===== ステップb: 変更後契約数のデフォルト値／解約チェック連動 =====
 // 「解約」チェックON時は変更後契約数を0固定・入力不可に、OFF時は現商品契約数を再セットして入力可能に戻す。
-// 現時点では商品マスタ連携（フェーズ2a）が未解消で「nヶ月分」商品の判定ができないため、
-// すべての明細行に適用する（「nヶ月分」商品の除外はフェーズ2で追加。
-// docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md参照）。
+// すべての明細行に適用する（「nヶ月分」商品だけを除外する制御は不要と確定。2026-11-02
+// docs/agent-records/2026-11-02_フェーズ4フェーズ2b-f減数解約禁止は不要と確定.md参照）。
+// 年額契約は期中の解約・減数ができないため、期中（変更適用月差分1〜11）の解約は
+// 確認・送信時にvalidateMidTermChangesでブロックする（ステップ3-2）。
+// docs/plans/2026-10-02_フェーズ4ステップb_年額版変更後契約数デフォルト値と解約連動.md参照。
 collaboform.events.on(`form.${CANCEL_CHECKBOX_PART_ID}.change`, function (data) {
   if (data.row_index === undefined) {
     return;

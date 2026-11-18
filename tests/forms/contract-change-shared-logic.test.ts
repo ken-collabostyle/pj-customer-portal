@@ -17,6 +17,7 @@ import {
   findEmptyTestEnvUrlFields,
   findInvalidAddedQuantities,
   hasTestEnvLicenseProduct,
+  toNumberOrNaN,
 } from "../../src/forms/contract-change-shared-logic";
 
 // テスト環境ライセンス専用インスタンスの「ベース」代替判定（2026-10-02追加）
@@ -338,5 +339,25 @@ describe("findEmptyTestEnvUrlFields", () => {
     expect(
       findEmptyTestEnvUrlFields({ firstChoice: "  ", secondChoice: null, thirdChoice: undefined })
     ).toHaveLength(3);
+  });
+});
+
+describe("toNumberOrNaN", () => {
+  it("数値・数値文字列は数値に変換する", () => {
+    expect(toNumberOrNaN(5)).toBe(5);
+    expect(toNumberOrNaN("2026")).toBe(2026);
+    expect(toNumberOrNaN(" 10 ")).toBe(10);
+    expect(toNumberOrNaN("0")).toBe(0);
+  });
+
+  it("空文字・空白のみ・null・undefinedはNaN（0にしない）", () => {
+    expect(toNumberOrNaN("")).toBeNaN();
+    expect(toNumberOrNaN("   ")).toBeNaN();
+    expect(toNumberOrNaN(null)).toBeNaN();
+    expect(toNumberOrNaN(undefined)).toBeNaN();
+  });
+
+  it("数値として解釈できない値はNaN", () => {
+    expect(toNumberOrNaN("abc")).toBeNaN();
   });
 });

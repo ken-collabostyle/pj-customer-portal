@@ -22,6 +22,7 @@ import {
   findUserCountMismatches,
   hasTestEnvLicenseProduct,
   isApplyMonthSelectionAllowed,
+  toNumberOrNaN,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
 
@@ -373,8 +374,8 @@ function buildInstanceSelector(instances: string[], data: CollaboformEventData):
  * DOMにレンダリングされ、選択肢を削除するDOM操作は非常に脆弱なため）。
  */
 function validateChangeApplyMonth(data: CollaboformEventData): boolean {
-  const selectedYear = Number(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
-  const selectedMonth = Number(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
+  const selectedYear = toNumberOrNaN(data.parts[CHANGE_APPLY_YEAR_PART_ID].value);
+  const selectedMonth = toNumberOrNaN(data.parts[CHANGE_APPLY_MONTH_PART_ID].value);
 
   if (Number.isNaN(selectedYear) || Number.isNaN(selectedMonth)) {
     return true;

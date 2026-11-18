@@ -231,6 +231,17 @@ export function isApplyMonthSelectionAllowed(
   return selectedMonth >= earliest.month;
 }
 
+// ===== 数値化ヘルパー =====
+
+/**
+ * パーツの値を数値に変換する。空文字・空白のみ・`null`・`undefined`は`Number("")===0`になり誤判定
+ * （例：未入力の変更適用希望年月を0年0月として扱い、実態に合わない警告を出す）するため`NaN`として扱う。
+ * 数値として解釈できない値も`NaN`になる。
+ */
+export function toNumberOrNaN(value: unknown): number {
+  return String(value ?? "").trim() === "" ? Number.NaN : Number(value);
+}
+
 // ===== 新規追加行の数量チェック・テスト環境ライセンス追加時のURL希望必須チェック（★1） =====
 // 年額版ステップ3-1で実装し、月額版へ適用する際に共通モジュールへ移した（月額・年額で共通。
 // docs/plans/2026-11-02_フェーズ4ステップ3-1_テスト環境ライセンス申込み時のURL希望必須チェック.md、
