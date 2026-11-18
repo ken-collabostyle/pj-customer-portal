@@ -4,6 +4,8 @@
 
 参照元：[【クラウド版】注文書兼利用申込書（年額：契約変更）.xlsx](../【クラウド版】注文書兼利用申込書（年額：契約変更）.xlsx)
 
+> 【2026-11-18更新】コラボフォーム規約への同意パーツ（契約時 `fidCollaboformTermsOnContract`・解約時 `fidCollaboformTermsOnCancel`）は、コラボフロー側のフォームから削除されたため本表から除外した（最新JSONで確認済み）。`fidCollaboflowTermsAgreement`（コラボフロー規約への同意）は残す扱い。
+
 ## 単一項目
 
 | 表示ラベル | 月額と同一意味か | 提案ID |
@@ -22,8 +24,6 @@
 | テスト環境のURL希望② | 同一 | `fidTestEnvUrlSecondChoice` |
 | テスト環境のURL希望③ | 同一 | `fidTestEnvUrlThirdChoice` |
 | サブドメイン（コラボフォーム申込み時） | 同一 | `fidCollaboformSubdomain` |
-| 規約への同意（コラボフォーム契約時） | 同一 | `fidCollaboformTermsOnContract` |
-| 規約への同意（コラボフォーム解約時） | 同一 | `fidCollaboformTermsOnCancel` |
 | コラボフォーム現在サブドメイン（解約時） | 同一 | `fidCollaboformCurrentSubdomain` |
 | ご注文小計 | 同一 | `fidOrderSubtotal` |
 | ご注文消費税 | 同一 | `fidOrderTax` |
