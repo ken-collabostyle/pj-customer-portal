@@ -126,3 +126,5 @@ collaboform.proxy.call('kintone-contract-db').then(function (response) {
 - **2026-10-02追記**：年額版フォーム（ステップa）の検証環境での実機確認の過程で、コラボフォームのプロキシAPI設定がフォーム単位であるため、月額版と同じ`kintone-contract-db`を年額版から呼び出せないことが判明。年額版専用に`kintone-contract-db-annual`エンドポイントを新設し、`annual-contract-change.ts`側の呼び出し先を変更した（エンドポイント1-b参照）。
 - 動作確認はユーザーが手動で行う方針（[docs/plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md](../plans/2026-08-24_顧客ポータルカスタマイズ全体計画.md)参照）。
 - **2026-11-02追記**：エンドポイント3（`kintone-product-master`）は**不要**となった。年額版の按分月数は、コラボフォームのlookup設定（`fidAddedProductName`の`数値`→`fidAddedProductProratedMonths`）でパーツにセットする方式を採用し、実機確認済み。`.env.example`の`KINTONE_PRODUCT_MASTER_*`キーも、現時点では使用しない。
+
+**2026-11-18更新**：新規追加商品の単価（定価）は、フォームの`fidAddedProductName`のlookup（商品マスタの「標準売価」＝`標準単価`→`fidAddedProductUnitPrice`、月額・年額とも設定済み）でセットする方針に確定した。ライセンス種類マスタの`月額単価`を定価の取得元とする2026-09-11の方針は不要になった（[実施記録](../agent-records/2026-11-18_フェーズ4新規追加商品の単価は商品マスタのlookupで標準売価をセットすると確定.md)）。
