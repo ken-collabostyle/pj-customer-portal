@@ -1,5 +1,5 @@
 {
-    "total_count": 35,
+    "total_count": 33,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 15,
@@ -15,7 +15,7 @@
             "name": "サブドメイン"
         },
         "fidCollaboformCurrentSubdomain": {
-            "order": 18,
+            "order": 17,
             "display": true,
             "input_format": "",
             "display_format": "",
@@ -28,7 +28,7 @@
             "name": "コラボフォーム現在サブドメイン"
         },
         "fidOrderTax": {
-            "order": 20,
+            "order": 19,
             "calc_type": "number",
             "decimal_place": 0,
             "hint": "",
@@ -51,17 +51,6 @@
             "default": "",
             "add_comma": false,
             "name": "現在契約ユーザー数"
-        },
-        "fidCollaboformTermsOnCancel": {
-            "checked_comment": "yes",
-            "order": 17,
-            "unchecked_comment": "",
-            "hint": "",
-            "required": false,
-            "type": "checkbox",
-            "comment": "",
-            "default": false,
-            "name": "コラボフォーム規約への同意解約時"
         },
         "fidCorporateName": {
             "order": 3,
@@ -101,17 +90,6 @@
             "max_length": 20,
             "default": "",
             "name": "お試し環境のURL"
-        },
-        "fidCollaboformTermsOnContract": {
-            "checked_comment": "yes",
-            "order": 16,
-            "unchecked_comment": "",
-            "hint": "",
-            "required": false,
-            "type": "checkbox",
-            "comment": "",
-            "default": false,
-            "name": "コラボフォーム規約への同意契約時"
         },
         "tables": [
             {
@@ -235,6 +213,7 @@
                         "name": "追加商品区分"
                     },
                     "fidAddedProductName": {
+                        "master_parts_key": "F057EF09060184B428ECCDF0FC5A2AC6",
                         "search_keys": [
                             {
                                 "code": "文字列__1行__0",
@@ -245,6 +224,7 @@
                         "hint": "",
                         "required": false,
                         "master_type": "kintone",
+                        "master_id": "1",
                         "comment": "",
                         "name": "追加商品名",
                         "master_name": "【検証用】商品マスタ",
@@ -347,7 +327,7 @@
             }
         ],
         "fidOrderSubtotal": {
-            "order": 19,
+            "order": 18,
             "calc_type": "number",
             "decimal_place": 0,
             "hint": "",
@@ -403,7 +383,7 @@
             "name": "変更適用希望年"
         },
         "fidOrderTotalAmount": {
-            "order": 21,
+            "order": 20,
             "calc_type": "number",
             "decimal_place": 0,
             "hint": "",
