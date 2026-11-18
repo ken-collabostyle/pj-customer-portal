@@ -13,28 +13,29 @@ export const BASE_CATEGORY = "ベース";
 // 業務ルールのため共通化する。
 
 /**
- * テスト環境ライセンスの行を識別する`検索ID`の値。
- * 実データの表記揺れ（空白の数等）は実機確認で要確認。
+ * テスト環境ライセンスを表す「区分」の値。
+ * 2026-11-18のkintone運用変更により、ライセンス種類マスタの`区分`・商品マスタの`商品区分2`
+ * （`fidAddedProductCategory`へlookupでセット）・クラウド契約管理DBの`区分`が、テスト環境ライセンスに限り
+ * 「オプション」から「テスト環境」になった（商品コードや`検索ID`に頼らずに判別できる）。
  */
-export const TEST_ENV_LICENSE_SEARCH_ID = "テスト環境ライセンス  クラウド版";
+export const TEST_ENV_CATEGORY = "テスト環境";
 
 /** `findBaseOrTestEnvLicenseRecord`が扱う最小限のレコード形状。 */
-export interface RecordWithCategoryAndSearchId {
+export interface RecordWithCategory {
   category: string;
-  searchId: string;
 }
 
 /**
- * 「ベース」区分のレコードを優先して探し、見つからない場合は`検索ID`がテスト環境ライセンスを
- * 示すレコードを代わりに返す（コラボフローアプリでは、テスト環境ライセンス専用インスタンスには
+ * 「ベース」区分のレコードを優先して探し、見つからない場合は「テスト環境」区分のレコードを
+ * 代わりに返す（コラボフローアプリでは、テスト環境ライセンス専用インスタンスには
  * 区分=ベースの行が存在しないため）。いずれも見つからない場合は`undefined`を返す。
  */
-export function findBaseOrTestEnvLicenseRecord<T extends RecordWithCategoryAndSearchId>(
+export function findBaseOrTestEnvLicenseRecord<T extends RecordWithCategory>(
   records: T[]
 ): T | undefined {
   return (
     records.find((record) => record.category === BASE_CATEGORY) ??
-    records.find((record) => record.searchId === TEST_ENV_LICENSE_SEARCH_ID)
+    records.find((record) => record.category === TEST_ENV_CATEGORY)
   );
 }
 
@@ -247,9 +248,6 @@ export function toNumberOrNaN(value: unknown): number {
 // docs/plans/2026-11-02_フェーズ4ステップ3-1_テスト環境ライセンス申込み時のURL希望必須チェック.md、
 // docs/plans/2026-11-05_月額版_テスト環境ライセンスURL希望必須チェックと数量チェック.md参照）。
 
-/** テスト環境ライセンスの商品コードに含まれる文字列（2026-11-02ユーザー確認済み）。 */
-export const TEST_ENV_LICENSE_PRODUCT_CODE_KEYWORD = "CCTLST0000";
-
 function isBlankValue(value: unknown): boolean {
   return String(value ?? "").trim() === "";
 }
@@ -292,11 +290,13 @@ export function findInvalidAddedQuantities(
   return invalid;
 }
 
-/** 商品コードに`CCTLST0000`を含む商品（テスト環境ライセンス）が1つでもあるか。 */
-export function hasTestEnvLicenseProduct(productCodes: unknown[]): boolean {
-  return productCodes.some((code) =>
-    String(code ?? "").includes(TEST_ENV_LICENSE_PRODUCT_CODE_KEYWORD)
-  );
+/**
+ * 区分が「テスト環境」の商品（テスト環境ライセンス）が1つでもあるか。
+ * 新規追加行の区分（`fidAddedProductCategory`、商品マスタの`商品区分2`のlookup値）の配列を渡す。
+ * 2026-11-18に、判別を商品コード（`CCTLST0000`を含む）から区分ベースへ変更した。
+ */
+export function hasTestEnvLicenseProduct(categories: unknown[]): boolean {
+  return categories.some((category) => category === TEST_ENV_CATEGORY);
 }
 
 /** テスト環境ライセンス追加時に必須となるURL希望のうち、未入力（空・空白のみ）の項目の表示名を返す。 */

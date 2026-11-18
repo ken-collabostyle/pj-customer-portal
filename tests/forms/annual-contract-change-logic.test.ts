@@ -30,7 +30,6 @@ function makeRecord(overrides: Partial<ContractRecord> = {}): ContractRecord {
     unitPrice: "12000",
     invoiceServiceName: "サンプル商品",
     contractExpiry: "2027-03-31",
-    searchId: "",
     ...overrides,
   };
 }
@@ -49,7 +48,6 @@ describe("toContractRecord", () => {
       [CONTRACT_DB_FIELD_CODES.unitPrice]: { value: "12000" },
       [CONTRACT_DB_FIELD_CODES.invoiceServiceName]: { value: "サンプル商品" },
       [CONTRACT_DB_FIELD_CODES.contractExpiry]: { value: "2027-03-31" },
-      [CONTRACT_DB_FIELD_CODES.searchId]: { value: "" },
     };
     expect(toContractRecord(raw)).toEqual(makeRecord());
   });
@@ -67,7 +65,6 @@ describe("toContractRecord", () => {
       unitPrice: "",
       invoiceServiceName: "",
       contractExpiry: "",
-      searchId: "",
     }));
   });
 });
@@ -143,28 +140,26 @@ describe("findBaseRecord", () => {
     expect(findBaseRecord(records)).toBeUndefined();
   });
 
-  it("ベースレコードがなくても、検索IDがテスト環境ライセンスを示すレコードを代わりに返す", () => {
+  it("ベースレコードがなくても、区分がテスト環境のレコードを代わりに返す", () => {
     const records = [
       makeRecord({
-        category: "フォーム",
+        category: "テスト環境",
         productCode: "TEST-ENV",
-        searchId: "テスト環境ライセンス  クラウド版",
       }),
     ];
     expect(findBaseRecord(records)?.productCode).toBe("TEST-ENV");
   });
 
-  it("検索IDがテスト環境ライセンスと一致しない場合は対象外", () => {
-    const records = [makeRecord({ category: "オプション", searchId: "その他のライセンス" })];
+  it("区分がテスト環境でない（オプション等）場合は対象外", () => {
+    const records = [makeRecord({ category: "オプション" })];
     expect(findBaseRecord(records)).toBeUndefined();
   });
 
   it("ベースレコードが存在する場合はテスト環境ライセンスレコードより優先する", () => {
     const records = [
       makeRecord({
-        category: "フォーム",
+        category: "テスト環境",
         productCode: "TEST-ENV",
-        searchId: "テスト環境ライセンス  クラウド版",
       }),
       makeRecord({ category: "ベース", productCode: "BASE" }),
     ];
@@ -199,12 +194,11 @@ describe("buildCurrentContractSummary", () => {
   it("テスト環境ライセンス専用インスタンス（ベースレコードなし）でも組み立てる", () => {
     const records = [
       makeRecord({
-        category: "フォーム",
+        category: "テスト環境",
         corporateName: "株式会社テスト",
         planName: "テスト環境ライセンス",
         quantity: "1",
         contractExpiry: "",
-        searchId: "テスト環境ライセンス  クラウド版",
       }),
     ];
     expect(buildCurrentContractSummary(records)).toEqual({

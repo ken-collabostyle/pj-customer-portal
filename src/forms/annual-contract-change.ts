@@ -447,15 +447,17 @@ function validateAddedProductQuantities(data: CollaboformEventData): boolean {
 }
 
 /**
- * テスト環境ライセンス（商品コードに`CCTLST0000`を含む新規追加商品）が追加された場合に、
+ * テスト環境ライセンス（区分が「テスト環境」の新規追加商品）が追加された場合に、
  * テスト環境のURL希望①〜③がすべて入力されているかを検証する（ステップ3-1、★1）。
+ * 判別は`fidAddedProductCategory`（商品マスタの「商品区分2」のlookup値）で行う
+ * （2026-11-18、商品コードに`CCTLST0000`を含むかの判別から変更）。
  * コラボフォームのJS APIにはパーツの必須を動的に切り替える手段がないため、確認・送信時にブロックする。
  * 既存契約のテスト環境ライセンスは対象外（新規追加された場合のみ。ユーザー確認済み）。
  */
 function validateTestEnvUrls(data: CollaboformEventData): boolean {
   const tableRows = data.parts[TABLE_PART_ID].value as ContractLineItemRow[];
-  const productCodes = tableRows.map((row) => row[ADDED_PRODUCT_CODE_PART_ID].value);
-  if (!hasTestEnvLicenseProduct(productCodes)) {
+  const addedCategories = tableRows.map((row) => row[ADDED_PRODUCT_CATEGORY_PART_ID].value);
+  if (!hasTestEnvLicenseProduct(addedCategories)) {
     return true;
   }
 

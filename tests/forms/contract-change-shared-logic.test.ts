@@ -10,42 +10,57 @@ import {
   getCutoffBusinessDay,
   isApplyMonthSelectionAllowed,
   isBusinessDay,
-  TEST_ENV_LICENSE_SEARCH_ID,
+  TEST_ENV_CATEGORY,
   type AddedLineItemForValidation,
   type ExistingLineItemForValidation,
-  type RecordWithCategoryAndSearchId,
+  type RecordWithCategory,
   findEmptyTestEnvUrlFields,
   findInvalidAddedQuantities,
   hasTestEnvLicenseProduct,
   toNumberOrNaN,
 } from "../../src/forms/contract-change-shared-logic";
 
-// テスト環境ライセンス専用インスタンスの「ベース」代替判定（2026-10-02追加）
+// テスト環境ライセンス専用インスタンスの「ベース」代替判定（2026-10-02追加。2026-11-18に検索IDから区分ベースへ変更）
 
-function makeCategorySearchIdRecord(
-  overrides: Partial<RecordWithCategoryAndSearchId> = {}
-): RecordWithCategoryAndSearchId {
-  return { category: "オプション", searchId: "", ...overrides };
+function makeCategoryRecord(overrides: Partial<RecordWithCategory> = {}): RecordWithCategory {
+  return { category: "オプション", ...overrides };
 }
 
 describe("findBaseOrTestEnvLicenseRecord", () => {
   it("区分がベースのレコードを優先して返す", () => {
     const records = [
-      makeCategorySearchIdRecord({ category: "オプション" }),
-      makeCategorySearchIdRecord({ category: "ベース" }),
+      makeCategoryRecord({ category: "オプション" }),
+      makeCategoryRecord({ category: "ベース" }),
     ];
     expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[1]);
   });
 
-  it("ベースレコードがなければ検索IDがテスト環境ライセンスのレコードを返す", () => {
+  it("ベースレコードがなければ区分がテスト環境のレコードを返す", () => {
     const records = [
-      makeCategorySearchIdRecord({ category: "フォーム", searchId: TEST_ENV_LICENSE_SEARCH_ID }),
+      makeCategoryRecord({ category: "フォーム" }),
+      makeCategoryRecord({ category: TEST_ENV_CATEGORY }),
     ];
-    expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[0]);
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[1]);
   });
 
-  it("ベース・テスト環境ライセンスのいずれもなければundefinedを返す", () => {
-    const records = [makeCategorySearchIdRecord({ category: "オプション", searchId: "その他" })];
+  it("ベースレコードがあれば、区分がテスト環境のレコードより優先する（順序によらない）", () => {
+    const records = [
+      makeCategoryRecord({ category: TEST_ENV_CATEGORY }),
+      makeCategoryRecord({ category: "ベース" }),
+    ];
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBe(records[1]);
+  });
+
+  it("ベース・テスト環境のいずれもなければundefinedを返す", () => {
+    const records = [makeCategoryRecord({ category: "オプション" })];
+    expect(findBaseOrTestEnvLicenseRecord(records)).toBeUndefined();
+  });
+
+  it("区分の表記が完全一致しない場合（半角・空白入り）はテスト環境とみなさない", () => {
+    const records = [
+      makeCategoryRecord({ category: "テスト環境 " }),
+      makeCategoryRecord({ category: "ﾃｽﾄ環境" }),
+    ];
     expect(findBaseOrTestEnvLicenseRecord(records)).toBeUndefined();
   });
 
@@ -148,6 +163,33 @@ describe("findUserCountMismatches", () => {
     const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
     const addedRows = [makeAddedRow({ category: "ベース", quantity: "999" })];
     expect(findUserCountMismatches(existingRows, addedRows)).toEqual([]);
+  });
+
+  // 2026-11-18：テスト環境ライセンスの区分が「オプション」から「テスト環境」に変わったため、
+  // ベースと数量が異なっても不一致として検出しない（ユーザー確認済み：対象外）。
+  it("区分が『テスト環境』の既存行は、ベースと数量が異なっても対象外", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: TEST_ENV_CATEGORY, changedQuantity: "1" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([]);
+  });
+
+  it("区分が『テスト環境』の新規追加行は、ベースと数量が異なっても対象外", () => {
+    const existingRows = [makeExistingRow({ category: "ベース", changedQuantity: "10" })];
+    const addedRows = [makeAddedRow({ category: TEST_ENV_CATEGORY, quantity: "1" })];
+    expect(findUserCountMismatches(existingRows, addedRows)).toEqual([]);
+  });
+
+  it("『テスト環境』行が混在しても、通常のオプション行の不一致は検出する", () => {
+    const existingRows = [
+      makeExistingRow({ category: "ベース", changedQuantity: "10" }),
+      makeExistingRow({ category: TEST_ENV_CATEGORY, changedQuantity: "1" }),
+      makeExistingRow({ category: "オプション", changedQuantity: "5" }),
+    ];
+    expect(findUserCountMismatches(existingRows, [])).toEqual([
+      { source: "existing", rowIndex: 3, category: "オプション", quantity: "5" },
+    ]);
   });
 });
 
@@ -296,14 +338,24 @@ describe("findInvalidAddedQuantities", () => {
   });
 });
 
+// 2026-11-18：判別を商品コード（CCTLST0000）から、新規追加行の区分（「テスト環境」）へ変更
 describe("hasTestEnvLicenseProduct", () => {
-  it("商品コードにCCTLST0000を含めばtrue（前後に文字があっても）", () => {
-    expect(hasTestEnvLicenseProduct(["CCTLST0000"])).toBe(true);
-    expect(hasTestEnvLicenseProduct(["XX-CCTLST0000-YY"])).toBe(true);
+  it("区分が『テスト環境』ならtrue", () => {
+    expect(hasTestEnvLicenseProduct(["テスト環境"])).toBe(true);
   });
 
-  it("含まなければfalse", () => {
-    expect(hasTestEnvLicenseProduct(["CODE-1", "CCTLST0001"])).toBe(false);
+  it("『テスト環境』以外の区分（オプション・ベース等）はfalse", () => {
+    expect(hasTestEnvLicenseProduct(["オプション", "ベース", "フォーム"])).toBe(false);
+  });
+
+  it("完全一致しない表記（前後の空白・半角・部分一致）はfalse", () => {
+    expect(hasTestEnvLicenseProduct([" テスト環境", "テスト環境 ", "ﾃｽﾄ環境", "テスト環境ライセンス"])).toBe(
+      false
+    );
+  });
+
+  it("商品コードに由来する文字列（CCTLST0000）は判別に使わない", () => {
+    expect(hasTestEnvLicenseProduct(["CCTLST0000"])).toBe(false);
   });
 
   it("空・null・undefined・空配列はfalse", () => {
@@ -312,7 +364,7 @@ describe("hasTestEnvLicenseProduct", () => {
   });
 
   it("複数行のうち1行のみ該当してもtrue", () => {
-    expect(hasTestEnvLicenseProduct(["CODE-1", "", "CCTLST0000", "CODE-2"])).toBe(true);
+    expect(hasTestEnvLicenseProduct(["オプション", "", "テスト環境", "オプション"])).toBe(true);
   });
 });
 
