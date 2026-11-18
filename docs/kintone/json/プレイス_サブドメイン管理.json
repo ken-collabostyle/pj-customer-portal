@@ -1,0 +1,142 @@
+{
+    "revision": "8",
+    "properties": {
+        "レコード番号": {
+            "type": "RECORD_NUMBER",
+            "code": "レコード番号",
+            "label": "レコード番号",
+            "noLabel": false
+        },
+        "作業者": {
+            "type": "STATUS_ASSIGNEE",
+            "code": "作業者",
+            "label": "作業者",
+            "enabled": false
+        },
+        "更新者": {
+            "type": "MODIFIER",
+            "code": "更新者",
+            "label": "更新者",
+            "noLabel": false
+        },
+        "作成者": {
+            "type": "CREATOR",
+            "code": "作成者",
+            "label": "作成者",
+            "noLabel": false
+        },
+        "ステータス": {
+            "type": "STATUS",
+            "code": "ステータス",
+            "label": "ステータス",
+            "enabled": false
+        },
+        "データ削除実行日": {
+            "type": "DATE",
+            "code": "データ削除実行日",
+            "label": "データ削除実行日",
+            "noLabel": false,
+            "required": false,
+            "unique": false,
+            "defaultValue": "",
+            "defaultNowValue": false
+        },
+        "インスタンス名": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "インスタンス名",
+            "label": "インスタンス名",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "更新日時": {
+            "type": "UPDATED_TIME",
+            "code": "更新日時",
+            "label": "更新日時",
+            "noLabel": false
+        },
+        "データ消去実行予定日": {
+            "type": "CALC",
+            "code": "データ消去実行予定日",
+            "label": "データ消去実行予定日(30日後)",
+            "noLabel": false,
+            "required": false,
+            "expression": "IF(ユーザー削除日>0, ユーザー削除日+(60*60*24*30), \"\")",
+            "format": "DATE",
+            "displayScale": "",
+            "hideExpression": false,
+            "unit": "",
+            "unitPosition": "BEFORE"
+        },
+        "カテゴリー": {
+            "type": "CATEGORY",
+            "code": "カテゴリー",
+            "label": "カテゴリー",
+            "enabled": false
+        },
+        "データ削除検証日": {
+            "type": "DATE",
+            "code": "データ削除検証日",
+            "label": "データ削除検証日",
+            "noLabel": false,
+            "required": false,
+            "unique": false,
+            "defaultValue": "",
+            "defaultNowValue": false
+        },
+        "顧客名": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "顧客名",
+            "label": "顧客名",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "ワークスペース削除情報": {
+            "type": "GROUP",
+            "code": "ワークスペース削除情報",
+            "label": "ワークスペース削除情報",
+            "noLabel": false,
+            "openGroup": false
+        },
+        "サブドメイン名": {
+            "type": "SINGLE_LINE_TEXT",
+            "code": "サブドメイン名",
+            "label": "サブドメイン名",
+            "noLabel": false,
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "expression": "",
+            "hideExpression": false,
+            "unique": false,
+            "defaultValue": ""
+        },
+        "作成日時": {
+            "type": "CREATED_TIME",
+            "code": "作成日時",
+            "label": "作成日時",
+            "noLabel": false
+        },
+        "ユーザー削除日": {
+            "type": "DATE",
+            "code": "ユーザー削除日",
+            "label": "ユーザー削除日",
+            "noLabel": false,
+            "required": false,
+            "unique": false,
+            "defaultValue": "",
+            "defaultNowValue": false
+        }
+    }
+}
