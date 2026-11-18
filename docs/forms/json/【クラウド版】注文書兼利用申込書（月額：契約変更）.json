@@ -1,5 +1,5 @@
 {
-    "total_count": 31,
+    "total_count": 29,
     "parts": {
         "fidCollaboformSubdomain": {
             "order": 9,
@@ -52,17 +52,6 @@
             "add_comma": false,
             "name": "現在契約ユーザー数"
         },
-        "fidCollaboformTermsOnCancel": {
-            "checked_comment": "yes",
-            "order": 11,
-            "unchecked_comment": "",
-            "hint": "",
-            "required": false,
-            "type": "checkbox",
-            "comment": "",
-            "default": false,
-            "name": "コラボフォーム規約への同意解約時"
-        },
         "fidCorporateName": {
             "order": 5,
             "display": true,
@@ -101,17 +90,6 @@
             "max_length": 20,
             "default": "",
             "name": "お試し環境のURL"
-        },
-        "fidCollaboformTermsOnContract": {
-            "checked_comment": "yes",
-            "order": 10,
-            "unchecked_comment": "",
-            "hint": "",
-            "required": false,
-            "type": "checkbox",
-            "comment": "",
-            "default": false,
-            "name": "コラボフォーム規約への同意契約時"
         },
         "tables": [
             {
@@ -212,6 +190,7 @@
                         "name": "変更後商品価格"
                     },
                     "fidAddedProductName": {
+                        "master_parts_key": "FEAFD4D6A17AE01D74C9BF9DF1ABD848",
                         "search_keys": [
                             {
                                 "code": "文字列__1行__0",
@@ -222,6 +201,7 @@
                         "hint": "",
                         "required": false,
                         "master_type": "kintone",
+                        "master_id": "1",
                         "comment": "",
                         "name": "追加商品名",
                         "master_name": "【検証用】商品マスタ",
@@ -230,7 +210,8 @@
                             "max_row": 20,
                             "display_columns": [
                                 "文字列__1行_",
-                                "文字列__1行__0"
+                                "文字列__1行__0",
+                                "標準単価"
                             ],
                             "order": "asc",
                             "order_column": "$id"
@@ -242,6 +223,10 @@
                                 "relation_part_id": "fidAddedProductCode"
                             },
                             {
+                                "master_field": "標準単価",
+                                "relation_part_id": "fidAddedProductUnitPrice"
+                            },
+                            {
                                 "master_field": "文字列__1行__5",
                                 "relation_part_id": "fidAddedProductCategory"
                             }
@@ -249,7 +234,7 @@
                         "default": ""
                     },
                     "fidAddedProductCategory": {
-                        "display": true,
+                        "display": false,
                         "input_format": "",
                         "display_format": "",
                         "hint": "",
@@ -449,7 +434,7 @@
             "name": "変更適用希望月"
         },
         "fidCollaboflowTermsAgreement": {
-            "checked_comment": "Yes",
+            "checked_comment": "yes",
             "order": 4,
             "unchecked_comment": "",
             "hint": "",
