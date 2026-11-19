@@ -128,3 +128,19 @@ collaboform.proxy.call('kintone-contract-db').then(function (response) {
 - **2026-11-02追記**：エンドポイント3（`kintone-product-master`）は**不要**となった。年額版の按分月数は、コラボフォームのlookup設定（`fidAddedProductName`の`数値`→`fidAddedProductProratedMonths`）でパーツにセットする方式を採用し、実機確認済み。`.env.example`の`KINTONE_PRODUCT_MASTER_*`キーも、現時点では使用しない。
 
 **2026-11-18更新**：新規追加商品の単価（定価）は、フォームの`fidAddedProductName`のlookup（商品マスタの「標準売価」＝`標準単価`→`fidAddedProductUnitPrice`、月額・年額とも設定済み）でセットする方針に確定した。ライセンス種類マスタの`月額単価`を定価の取得元とする2026-09-11の方針は不要になった（[実施記録](../agent-records/2026-11-18_フェーズ4新規追加商品の単価は商品マスタのlookupで標準売価をセットすると確定.md)）。
+
+## 【2026-11-19】商品マスタ検索用プロキシ（`kintone-product-master`／`kintone-product-master-annual`）
+
+新規追加商品名のlookupをテキストパーツ＋JS検索に置き換えたため、**エンドポイント3が復活**した（上記「2026-11-02追記：不要」「2026-11-18更新：lookupで単価セット」は、この置き換えで上書きされる）。月額版は`kintone-product-master`、年額版は`kintone-product-master-annual`（フォーム単位のため別名）。
+
+| 項目 | 設定値 |
+|---|---|
+| HTTPメソッド | GET |
+| 接続先ホスト | `https://devaqvqwv.cybozu.com` |
+| パス | `/k/v1/records.json` |
+| クエリパラメーター | `app=78`のみ。**`query`は設定しない**（管理者設定が優先され、JSから渡す検索条件が上書きされるため） |
+| リクエストヘッダー | `X-Cybozu-API-Token`＝商品マスタ用トークンを直接入力（抜けると`401 CB_AU01`） |
+
+実機で判明した注意点：
+- `kintone-contract-db`の`query`は、`顧客番号="${user.customer_no}"`のように**ユーザー拡張項目のテンプレート変数が使える**（拡張項目コード`customer_no`、数値型）。以前の「未実装」の記載は解消済み（2026-11-19実機確認）。
+- 契約情報が取得できない主な原因：①`query`の書式、②対象顧客のレコードが月額版で「月額」でない（年額のみ）、③`インスタンス`が空。
