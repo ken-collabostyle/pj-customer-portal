@@ -213,52 +213,16 @@
                         "name": "追加商品区分"
                     },
                     "fidAddedProductName": {
-                        "master_parts_key": "4F96A948B1FB7128B05E30EAB4200D73",
-                        "search_keys": [
-                            {
-                                "code": "文字列__1行__0",
-                                "display": true,
-                                "relation_part_id": ""
-                            }
-                        ],
+                        "display": true,
+                        "input_format": "",
+                        "display_format": "",
                         "hint": "",
                         "required": false,
-                        "master_type": "kintone",
-                        "master_id": "1",
+                        "type": "text",
                         "comment": "",
-                        "name": "追加商品名",
-                        "master_name": "【検証用】商品マスタ",
-                        "inputtable": true,
-                        "search_result": {
-                            "max_row": 20,
-                            "display_columns": [
-                                "文字列__1行_",
-                                "文字列__1行__0",
-                                "標準単価"
-                            ],
-                            "order": "asc",
-                            "order_column": "$id"
-                        },
-                        "type": "lookup",
-                        "data_placements": [
-                            {
-                                "master_field": "文字列__1行_",
-                                "relation_part_id": "fidAddedProductCode"
-                            },
-                            {
-                                "master_field": "標準単価",
-                                "relation_part_id": "fidAddedProductUnitPrice"
-                            },
-                            {
-                                "master_field": "数値",
-                                "relation_part_id": "fidAddedProductProratedMonths"
-                            },
-                            {
-                                "master_field": "文字列__1行__5",
-                                "relation_part_id": "fidAddedProductCategory"
-                            }
-                        ],
-                        "default": ""
+                        "max_length": 50,
+                        "default": "",
+                        "name": "追加商品名"
                     },
                     "fidChangedProductQuantity": {
                         "display": true,
@@ -323,9 +287,9 @@
                     "fidAddedProductPrice",
                     "fidAddedProductCategory",
                     "fidChangedProductName",
-                    "fidAddedProductName",
                     "fidChangedProductQuantityDiff",
-                    "fidAddedProductProratedMonths"
+                    "fidAddedProductProratedMonths",
+                    "fidAddedProductName"
                 ],
                 "display_row_number": false,
                 "name": "table"
