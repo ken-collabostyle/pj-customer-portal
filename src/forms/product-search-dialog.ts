@@ -4,6 +4,7 @@
 // 参照: docs/plans/2026-11-19_新規追加商品名のlookupからテキストパーツ+JS検索への置き換え.md
 import {
   buildProductSearchQuery,
+  type ProductBillingCycle,
   resolvePlanDisplayFlagField,
   toProductSearchRows,
   type ProductSearchResultRow,
@@ -13,6 +14,8 @@ import {
 export interface ProductSearchConfig {
   /** 商品マスタ検索用プロキシAPIのエンドポイントコード。 */
   endpoint: string;
+  /** 検索対象の「月額／年額」（月額版フォームは「月額」、年額版フォームは「年額」）。 */
+  billingCycle: ProductBillingCycle;
   /** `data.parts`上の明細テーブルのパーツID（例：`tbl_1`）。 */
   tablePartId: string;
   /** DOM上のパーツid接頭辞（例：`table`。`table:1:fidAddedProductName`の`table`部分）。 */
@@ -172,7 +175,7 @@ function openDialog(config: ProductSearchConfig, rowIndex: number): void {
     results.textContent = "検索中...";
     searchButton.disabled = true;
     collaboform.proxy
-      .call(config.endpoint, { query: { query: buildProductSearchQuery(input.value, flagField) } })
+      .call(config.endpoint, { query: { query: buildProductSearchQuery(input.value, flagField, config.billingCycle) } })
       .then((response) => {
         if (!response.success) {
           console.error(`[product-search] 検索に失敗しました。status=${response.status}`);

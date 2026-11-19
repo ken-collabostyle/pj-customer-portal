@@ -24,6 +24,9 @@ export const PLAN_DISPLAY_FLAG_FIELD_CODES = {
 
 export const PRODUCT_SEARCH_MAX_ROWS = 20;
 
+/** 商品マスタの「月額／年額」の値。月額版フォームは「月額」、年額版フォームは「年額」で絞り込む。 */
+export type ProductBillingCycle = "月額" | "年額";
+
 /**
  * 現在契約プラン名（クラウド契約管理DBの`種類２`）から、絞り込みに使う「表示」フラグのフィールドコードを返す。
  * 実データ例：「スタンダードプラン」「プレミアムプラン アカデミック/ガバメントライセンス」。
@@ -54,12 +57,16 @@ export function escapeKintoneQueryString(value: string): string {
 
 /**
  * 商品マスタ検索のkintoneクエリを組み立てる。固定条件：月額・クラウド・ベースライセンス対応の表示フラグ=表示・
- * 販売終了フラグ=値なし・見積検索対象外=値なし。キーワードは空でもよい（「商品名_マイページ用」の部分一致）。
+ * 販売終了フラグ=値なし・見積検索対象外=値なし（月額／年額はフォームに応じて指定）。キーワードは空でもよい（「商品名_マイページ用」の部分一致）。
  */
-export function buildProductSearchQuery(keyword: string, planDisplayFlagField: string): string {
+export function buildProductSearchQuery(
+  keyword: string,
+  planDisplayFlagField: string,
+  billingCycle: ProductBillingCycle
+): string {
   const f = PRODUCT_MASTER_FIELD_CODES;
   const conditions = [
-    `${f.monthlyOrAnnual} in ("月額")`,
+    `${f.monthlyOrAnnual} in ("${billingCycle}")`,
     `${f.onPremiseOrCloud} in ("クラウド")`,
     `${planDisplayFlagField} in ("表示")`,
     `${f.endOfSaleFlag} not in ("販売終了")`,

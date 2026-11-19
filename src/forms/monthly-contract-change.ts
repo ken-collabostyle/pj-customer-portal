@@ -468,6 +468,7 @@ collaboform.events.on("form.show", function (data) {
   // ベースライセンスは、選択中インスタンスの現在契約プラン（fidCurrentContractPlan）から取得する。
   attachProductSearch({
     endpoint: PRODUCT_MASTER_ENDPOINT,
+    billingCycle: "月額",
     tablePartId: TABLE_PART_ID,
     domRowIdPrefix: "table",
     namePartId: ADDED_PRODUCT_NAME_PART_ID,

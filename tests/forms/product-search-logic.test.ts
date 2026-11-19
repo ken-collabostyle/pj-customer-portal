@@ -26,7 +26,7 @@ describe("resolvePlanDisplayFlagField", () => {
 
 describe("buildProductSearchQuery", () => {
   it("キーワード空でも固定条件のみのクエリを返す", () => {
-    expect(buildProductSearchQuery("  ", "スタンダード_表示")).toBe(
+    expect(buildProductSearchQuery("  ", "スタンダード_表示", "月額")).toBe(
       '月額年額 in ("月額") and ラジオボタン in ("クラウド") and スタンダード_表示 in ("表示") ' +
         'and 販売終了フラグ not in ("販売終了") and 見積検索対象外 not in ("対象外") ' +
         "order by 文字列__1行_ asc limit 20"
@@ -34,9 +34,17 @@ describe("buildProductSearchQuery", () => {
   });
 
   it("キーワードは商品名_マイページ用のlike条件になりエスケープされる", () => {
-    const query = buildProductSearchQuery('ab"c', "直販アカガバ_表示");
+    const query = buildProductSearchQuery('ab"c', "直販アカガバ_表示", "月額");
     expect(query).toContain('直販アカガバ_表示 in ("表示")');
     expect(query).toContain('商品名_マイページ用 like "ab\\"c"');
+  });
+});
+
+describe("buildProductSearchQuery（年額）", () => {
+  it("月額／年額の条件が年額になる", () => {
+    const query = buildProductSearchQuery("", "プレミアム_表示", "年額");
+    expect(query).toContain('月額年額 in ("年額")');
+    expect(query).not.toContain('月額年額 in ("月額")');
   });
 });
 
