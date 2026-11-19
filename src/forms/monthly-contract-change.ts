@@ -25,6 +25,7 @@ import {
   toNumberOrNaN,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
+import { attachProductSearch } from "./product-search-dialog";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db";
 
@@ -59,6 +60,9 @@ const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
 const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
 const ADDED_PRODUCT_CODE_PART_ID = "fidAddedProductCode";
 const ADDED_PRODUCT_NAME_PART_ID = "fidAddedProductName";
+const ADDED_PRODUCT_UNIT_PRICE_PART_ID = "fidAddedProductUnitPrice";
+// 商品マスタ検索用プロキシAPI（管理画面で設定。docs/kintone/README.md参照）。
+const PRODUCT_MASTER_ENDPOINT = "kintone-product-master";
 
 // ★1：テスト環境ライセンス追加時に必須となるURL希望のパーツID。
 const TEST_ENV_URL_FIRST_CHOICE_PART_ID = "fidTestEnvUrlFirstChoice";
@@ -458,6 +462,21 @@ function blockSubmissionIfDataIssueDetected(): boolean {
 collaboform.events.on("form.show", function (data) {
   // 初期化処理（本ハンドラー全体）が完了するまでローディング表示で入力をブロックする。
   showLoadingOverlay();
+
+  // ===== 新規追加商品名の商品検索（lookupの代替。2026-11-19） =====
+  // 追加商品名の入力欄に虫眼鏡を付け、クリックで商品マスタ検索ダイアログを開く。絞り込みに使う
+  // ベースライセンスは、選択中インスタンスの現在契約プラン（fidCurrentContractPlan）から取得する。
+  attachProductSearch({
+    endpoint: PRODUCT_MASTER_ENDPOINT,
+    tablePartId: TABLE_PART_ID,
+    domRowIdPrefix: "table",
+    namePartId: ADDED_PRODUCT_NAME_PART_ID,
+    codePartId: ADDED_PRODUCT_CODE_PART_ID,
+    unitPricePartId: ADDED_PRODUCT_UNIT_PRICE_PART_ID,
+    categoryPartId: ADDED_PRODUCT_CATEGORY_PART_ID,
+    getPlanName: () => String(data.parts[CURRENT_PLAN_PART_ID].value ?? ""),
+    getFormData: () => data,
+  });
 
   // ===== ステップf: 変更適用希望年月のデフォルト値 =====
   // kintone連携（インスタンス名・契約情報）とは独立した処理のため、プロキシ呼び出しの完了を待たず即時セットする。
