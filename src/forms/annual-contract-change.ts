@@ -37,6 +37,7 @@ import {
   toNumberOrNaN,
 } from "./contract-change-shared-logic";
 import { JAPAN_HOLIDAYS } from "./japan-holidays";
+import { attachProductSearch } from "./product-search-dialog";
 
 const KINTONE_CONTRACT_DB_ENDPOINT = "kintone-contract-db-annual";
 
@@ -75,7 +76,10 @@ const ADDED_PRODUCT_QUANTITY_PART_ID = "fidAddedProductQuantity";
 const ADDED_PRODUCT_CATEGORY_PART_ID = "fidAddedProductCategory";
 const ADDED_PRODUCT_CODE_PART_ID = "fidAddedProductCode";
 const ADDED_PRODUCT_NAME_PART_ID = "fidAddedProductName";
-// 追加商品按分月数（2026-11-02追加）。`fidAddedProductName`のlookupで商品マスタの`按分月数`（`数値`）がセットされる。
+const ADDED_PRODUCT_UNIT_PRICE_PART_ID = "fidAddedProductUnitPrice";
+// 商品マスタ検索用プロキシAPI（管理画面で設定。月額版とはエンドポイント名を分ける。docs/kintone/README.md参照）。
+const PRODUCT_MASTER_ENDPOINT = "kintone-product-master-annual";
+// 追加商品按分月数（2026-11-02追加）。商品検索ダイアログで行を選択した際に、商品マスタの`按分月数`（`数値`）がセットされる。
 const ADDED_PRODUCT_PRORATED_MONTHS_PART_ID = "fidAddedProductProratedMonths";
 
 // 「変更後差分契約数」（年額のみ新規、type: calculate、formula: fidChangedProductQuantity-fidCurrentProductQuantity）。
@@ -707,6 +711,24 @@ function blockSubmissionIfDataIssueDetected(): boolean {
 collaboform.events.on("form.show", function (data) {
   // 初期化処理（本ハンドラー全体）が完了するまでローディング表示で入力をブロックする。
   showLoadingOverlay();
+
+  // ===== 新規追加商品名の商品検索（lookupの代替。2026-11-19） =====
+  // 追加商品名の入力欄に虫眼鏡を付け、クリックで商品マスタ検索ダイアログを開く。絞り込みに使う
+  // ベースライセンスは、選択中インスタンスの現在契約プラン（fidCurrentContractPlan）から取得する。
+  // 年額版は商品マスタの「月額／年額」=年額で絞り込み、按分月数も合わせてセットする。
+  attachProductSearch({
+    endpoint: PRODUCT_MASTER_ENDPOINT,
+    billingCycle: "年額",
+    tablePartId: TABLE_PART_ID,
+    domRowIdPrefix: "table",
+    namePartId: ADDED_PRODUCT_NAME_PART_ID,
+    codePartId: ADDED_PRODUCT_CODE_PART_ID,
+    unitPricePartId: ADDED_PRODUCT_UNIT_PRICE_PART_ID,
+    categoryPartId: ADDED_PRODUCT_CATEGORY_PART_ID,
+    proratedMonthsPartId: ADDED_PRODUCT_PRORATED_MONTHS_PART_ID,
+    getPlanName: () => String(data.parts[CURRENT_PLAN_PART_ID].value ?? ""),
+    getFormData: () => data,
+  });
 
   // ===== ステップd: 変更適用希望年月のデフォルト値 =====
   // kintone連携（インスタンス名・契約情報）とは独立した処理のため、プロキシ呼び出しの完了を待たず即時セットする。
