@@ -22,6 +22,12 @@ export const PLAN_DISPLAY_FLAG_FIELD_CODES = {
   academicGovernment: "直販アカガバ_表示",
 } as const;
 
+/**
+ * 商品区分2（`文字列__1行__5`）がこの値の商品（コラボフォーム・フォームOP）は、
+ * ベースライセンス別の「表示」フラグの有無にかかわらず、すべてのベースプランで検索対象にする。
+ */
+export const FORM_PRODUCT_CATEGORIES = ["フォーム", "フォームOP"] as const;
+
 export const PRODUCT_SEARCH_MAX_ROWS = 20;
 
 /** 商品マスタの「月額／年額」の値。月額版フォームは「月額」、年額版フォームは「年額」で絞り込む。 */
@@ -56,7 +62,7 @@ export function escapeKintoneQueryString(value: string): string {
 }
 
 /**
- * 商品マスタ検索のkintoneクエリを組み立てる。固定条件：月額・クラウド・ベースライセンス対応の表示フラグ=表示・
+ * 商品マスタ検索のkintoneクエリを組み立てる。固定条件：月額・クラウド・（ベースライセンス対応の表示フラグ=表示 または 商品区分2=フォーム／フォームOP）・
  * 販売終了フラグ=値なし・見積検索対象外=値なし（月額／年額はフォームに応じて指定）。キーワードは空でもよい（「商品名_マイページ用」の部分一致）。
  */
 export function buildProductSearchQuery(
@@ -65,10 +71,11 @@ export function buildProductSearchQuery(
   billingCycle: ProductBillingCycle
 ): string {
   const f = PRODUCT_MASTER_FIELD_CODES;
+  const formCategories = FORM_PRODUCT_CATEGORIES.map((c) => `"${c}"`).join(",");
   const conditions = [
     `${f.monthlyOrAnnual} in ("${billingCycle}")`,
     `${f.onPremiseOrCloud} in ("クラウド")`,
-    `${planDisplayFlagField} in ("表示")`,
+    `(${planDisplayFlagField} in ("表示") or ${f.category} in (${formCategories}))`,
     `${f.endOfSaleFlag} not in ("販売終了")`,
     `${f.excludedFromQuote} not in ("対象外")`,
   ];
