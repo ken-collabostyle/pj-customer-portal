@@ -6,6 +6,7 @@ import {
   buildProductSearchQuery,
   type ProductBillingCycle,
   resolvePlanDisplayFlagField,
+  splitProductSearchPage,
   toProductSearchRows,
   type ProductSearchResultRow,
   type RawProductMasterRecord,
@@ -167,40 +168,82 @@ function openDialog(config: ProductSearchConfig, rowIndex: number): void {
 
   const results = createEl("div", { overflowY: "auto", minHeight: "80px" });
   panel.appendChild(results);
+
+  const pager = createEl("div", {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+  });
+  const prevButton = createEl("button", { padding: "4px 14px" }, "前へ");
+  prevButton.type = "button";
+  const pageLabel = createEl("span", { fontSize: "14px" });
+  const nextButton = createEl("button", { padding: "4px 14px" }, "次へ");
+  nextButton.type = "button";
+  pager.append(prevButton, pageLabel, nextButton);
+  panel.appendChild(pager);
+
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
   input.focus();
 
-  const search = (): void => {
+  // ページ移動中は、検索ボタン押下時点のキーワードを使い続ける（入力欄を編集しても再検索まで反映しない）。
+  let currentKeyword = "";
+  let currentPage = 1;
+
+  const updatePager = (hasNext: boolean): void => {
+    pageLabel.textContent = `${currentPage}ページ目`;
+    prevButton.disabled = currentPage <= 1;
+    nextButton.disabled = !hasNext;
+  };
+  updatePager(false);
+
+  const loadPage = (page: number): void => {
     results.textContent = "検索中...";
     searchButton.disabled = true;
+    prevButton.disabled = true;
+    nextButton.disabled = true;
     collaboform.proxy
-      .call(config.endpoint, { query: { query: buildProductSearchQuery(input.value, flagField, config.billingCycle) } })
+      .call(config.endpoint, {
+        query: { query: buildProductSearchQuery(currentKeyword, flagField, config.billingCycle, page) },
+      })
       .then((response) => {
         if (!response.success) {
           console.error(`[product-search] 検索に失敗しました。status=${response.status}`);
           results.textContent = "商品の検索に失敗しました。時間をおいて再度お試しください。";
+          updatePager(false);
           return;
         }
         const body = response.body as { records?: RawProductMasterRecord[] };
-        renderResults(results, toProductSearchRows(body.records ?? []), (row) => {
+        const pageData = splitProductSearchPage(toProductSearchRows(body.records ?? []));
+        currentPage = page;
+        renderResults(results, pageData.rows, (row) => {
           if (applyRowSelection(config, rowIndex, row)) {
             closeDialog();
           } else {
             alert("商品の反映に失敗しました。お手数ですがシステム管理者にお問い合わせください。");
           }
         });
+        updatePager(pageData.hasNext);
       })
       .catch((error: unknown) => {
         console.error("[product-search] 検索中に通信エラーが発生しました。", error);
         results.textContent = "商品の検索に失敗しました。時間をおいて再度お試しください。";
+        updatePager(false);
       })
       .finally(() => {
         searchButton.disabled = false;
       });
   };
 
+  const search = (): void => {
+    currentKeyword = input.value;
+    loadPage(1);
+  };
+
   searchButton.addEventListener("click", search);
+  prevButton.addEventListener("click", () => loadPage(currentPage - 1));
+  nextButton.addEventListener("click", () => loadPage(currentPage + 1));
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();

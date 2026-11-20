@@ -28,7 +28,8 @@ export const PLAN_DISPLAY_FLAG_FIELD_CODES = {
  */
 export const FORM_PRODUCT_CATEGORIES = ["フォーム", "フォームOP"] as const;
 
-export const PRODUCT_SEARCH_MAX_ROWS = 20;
+/** 検索結果の1ページあたりの表示件数。 */
+export const PRODUCT_SEARCH_PAGE_SIZE = 20;
 
 /** 商品マスタの「月額／年額」の値。月額版フォームは「月額」、年額版フォームは「年額」で絞り込む。 */
 export type ProductBillingCycle = "月額" | "年額";
@@ -68,7 +69,8 @@ export function escapeKintoneQueryString(value: string): string {
 export function buildProductSearchQuery(
   keyword: string,
   planDisplayFlagField: string,
-  billingCycle: ProductBillingCycle
+  billingCycle: ProductBillingCycle,
+  page = 1
 ): string {
   const f = PRODUCT_MASTER_FIELD_CODES;
   const formCategories = FORM_PRODUCT_CATEGORIES.map((c) => `"${c}"`).join(",");
@@ -83,7 +85,25 @@ export function buildProductSearchQuery(
   if (trimmed !== "") {
     conditions.push(`${f.productName} like "${escapeKintoneQueryString(trimmed)}"`);
   }
-  return `${conditions.join(" and ")} order by ${f.productCode} asc limit ${PRODUCT_SEARCH_MAX_ROWS}`;
+  // 次ページの有無を判定するため、1ページ分より1件多く取得する。並びはメーカー型番の降順（フォーム系商品が先頭に来る）。
+  const offset = (Math.max(1, Math.floor(page)) - 1) * PRODUCT_SEARCH_PAGE_SIZE;
+  return (
+    `${conditions.join(" and ")} order by ${f.productCode} desc ` +
+    `limit ${PRODUCT_SEARCH_PAGE_SIZE + 1} offset ${offset}`
+  );
+}
+
+export interface ProductSearchPage {
+  rows: ProductSearchResultRow[];
+  hasNext: boolean;
+}
+
+/** 1ページ分+1件取得した結果を、表示行と次ページ有無に分ける。 */
+export function splitProductSearchPage(rows: ProductSearchResultRow[]): ProductSearchPage {
+  return {
+    rows: rows.slice(0, PRODUCT_SEARCH_PAGE_SIZE),
+    hasNext: rows.length > PRODUCT_SEARCH_PAGE_SIZE,
+  };
 }
 
 /** kintone REST APIのレコード（フィールドコード→`{value}`）の最小形状。 */
